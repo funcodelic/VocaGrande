@@ -5,6 +5,7 @@
 //  Created by Troy Mulder on 8/31/26.
 //
 
+import SwiftData
 import SwiftUI
 
 /// The pane to the right of the book. Lists the text captured out of the
@@ -12,6 +13,9 @@ import SwiftUI
 struct SidebarView: View {
 
     let controller: BookPdfController
+
+    /// Every capture saved so far, oldest first.
+    @Query(sort: \TextSelectionItem.captureTime) private var items: [TextSelectionItem]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -43,8 +47,12 @@ struct SidebarView: View {
 
             Divider()
 
-            List(controller.textSelections) { selection in
-                TextSelectionRow(selection: selection)
+            List(items) { item in
+                TextSelectionRow(
+                    item: item,
+                    image: controller.sessionImages[item.persistentModelID],
+                    onDelete: { controller.delete(item) }
+                )
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
@@ -57,4 +65,5 @@ struct SidebarView: View {
 #Preview {
     SidebarView(controller: BookPdfController())
         .frame(width: 200, height: 800)
+        .modelContainer(for: TextSelectionItem.self, inMemory: true)
 }

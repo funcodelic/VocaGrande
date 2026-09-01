@@ -7,6 +7,7 @@
 
 import AppKit
 import PDFKit
+import SwiftData
 import SwiftUI
 
 /// Zoom commands and the current page number, shared between `BookPdfView`
@@ -17,8 +18,14 @@ final class BookPdfController {
     /// 1-based page number shown in the overlay at the bottom of the reader.
     var currentPage = 1
 
-    /// Text captured out of the book, oldest first, listed in the sidebar.
-    var textSelections: [TextSelection] = []
+    /// Where captures are saved. `BookPdfView` hands over the environment's context
+    /// when it appears.
+    @ObservationIgnored var modelContext: ModelContext?
+
+    /// Images dragged out of the book this session, by the item they were saved as.
+    /// Never persisted: after a relaunch an image capture has only whatever text was
+    /// read out of it.
+    var sessionImages: [PersistentIdentifier: NSImage] = [:]
 
     /// The text highlighted in the book right now, or nil when nothing is selected.
     /// Only drives the sidebar's `+` button being enabled; captures read the live
@@ -61,19 +68,45 @@ final class BookPdfController {
         pdfView?.autoScales = true
     }
 
-    /// Adds whatever is highlighted in the book to `textSelections`, then clears the
-    /// highlight so the sidebar's `+` goes back to its resting state.
+    /// Saves whatever is highlighted in the book, then clears the highlight so the
+    /// sidebar's `+` goes back to its resting state.
     func captureSelection() {
         guard let text = liveSelectionText() else { return }
-        textSelections.append(TextSelection(text: text))
+        save(TextSelectionItem(selectionText: text))
         pdfView?.currentSelection = nil
         selectedText = nil
     }
 
-    /// Adds an image dragged out of the book. Captures made this way have no text
+    /// Saves an image dragged out of the book. Captures made this way have no text
     /// of their own until the API reads them.
     private func captureImage(_ image: NSImage) {
-        textSelections.append(TextSelection(text: "", selectedImage: Image(nsImage: image)))
+        let item = TextSelectionItem()
+        save(item)
+        // Keyed after saving, when the id is permanent and matches what the sidebar's
+        // query hands back.
+        sessionImages[item.persistentModelID] = image
+    }
+
+    /// Removes a capture from the store, and forgets its session image if it had one.
+    func delete(_ item: TextSelectionItem) {
+        guard let modelContext else { return }
+        sessionImages[item.persistentModelID] = nil
+        modelContext.delete(item)
+        saveChanges(modelContext, or: "delete the capture")
+    }
+
+    private func save(_ item: TextSelectionItem) {
+        guard let modelContext else { return }
+        modelContext.insert(item)
+        saveChanges(modelContext, or: "save the capture")
+    }
+
+    private func saveChanges(_ modelContext: ModelContext, or action: String) {
+        do {
+            try modelContext.save()
+        } catch {
+            print("Couldn't \(action): \(error)")
+        }
     }
 
     fileprivate func syncCurrentPage() {
@@ -104,6 +137,8 @@ struct BookPdfView: View {
 
     let controller: BookPdfController
 
+    @Environment(\.modelContext) private var modelContext
+
     @State private var state: LoadState = .loading
 
     /// The sidebar starts hidden; the title-bar button reveals it.
@@ -131,7 +166,10 @@ struct BookPdfView: View {
                 .help(isSidebarVisible ? "Hide Sidebar" : "Show Sidebar")
             }
         }
-        .task { load() }
+        .task {
+            controller.modelContext = modelContext
+            load()
+        }
     }
 
     @ViewBuilder
@@ -373,4 +411,5 @@ private extension NSRect {
 #Preview {
     BookPdfView(controller: BookPdfController())
         .frame(width: 1200, height: 800)
+        .modelContainer(for: TextSelectionItem.self, inMemory: true)
 }
