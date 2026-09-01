@@ -6,14 +6,41 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		1131A9BC30322D3400379A00 /* whisper.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1131A9B63032294100379A00 /* whisper.xcframework */; };
+		1131A9BD30322D3400379A00 /* whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1131A9B63032294100379A00 /* whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1131A9BE30322D3400379A00 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				1131A9BD30322D3400379A00 /* whisper.xcframework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		1131A9A030320FE500379A00 /* VocaGrande.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VocaGrande.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1131A9B0303211E100379A00 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		1131A9B430321AAE00379A00 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
+		1131A9B63032294100379A00 /* whisper.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = whisper.xcframework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1131A9A230320FE500379A00 /* VocaGrande */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = VocaGrande;
+			sourceTree = "<group>";
+		};
+		11A8A5EB304613470047244A /* Sandbox */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Sandbox;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -23,6 +50,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1131A9BC30322D3400379A00 /* whisper.xcframework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -32,6 +60,10 @@
 		1131A99730320FE500379A00 = {
 			isa = PBXGroup;
 			children = (
+				11A8A5EB304613470047244A /* Sandbox */,
+				1131A9B63032294100379A00 /* whisper.xcframework */,
+				1131A9B430321AAE00379A00 /* CLAUDE.md */,
+				1131A9B0303211E100379A00 /* .gitignore */,
 				1131A9A230320FE500379A00 /* VocaGrande */,
 				1131A9A130320FE500379A00 /* Products */,
 			);
@@ -55,6 +87,7 @@
 				1131A99C30320FE500379A00 /* Sources */,
 				1131A99D30320FE500379A00 /* Frameworks */,
 				1131A99E30320FE500379A00 /* Resources */,
+				1131A9BE30322D3400379A00 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -62,6 +95,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				1131A9A230320FE500379A00 /* VocaGrande */,
+				11A8A5EB304613470047244A /* Sandbox */,
 			);
 			name = VocaGrande;
 			packageProductDependencies = (
@@ -257,9 +291,11 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VocaGrande uses your microphone to record your Spanish practice and transcribe it locally on this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -289,9 +325,11 @@
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VocaGrande uses your microphone to record your Spanish practice and transcribe it locally on this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

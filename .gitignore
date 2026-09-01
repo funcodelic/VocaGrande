@@ -1,0 +1,81 @@
+# ─────────────────────────────
+# Xcode build data
+# ─────────────────────────────
+DerivedData/
+/build/
+/Build/
+
+# User-specific Xcode data
+xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.xcscmblueprint
+
+# Archives
+*.xcarchive
+
+# ─────────────────────────────
+# Swift Package Manager
+# ─────────────────────────────
+.build/
+.swiftpm/*
+!.swiftpm/Package.resolved
+
+# ─────────────────────────────
+# CocoaPods / Carthage (safe even if unused)
+# ─────────────────────────────
+Pods/
+Carthage/Build/
+
+# ─────────────────────────────
+# Code signing / provisioning (secrets)
+# ─────────────────────────────
+*.mobileprovision
+*.p12
+*.cer
+
+# ─────────────────────────────
+# Logs & temp
+# ─────────────────────────────
+*.log
+*.tmp
+*.swp
+*.crash
+*.dSYM
+*.dSYM.zip
+
+# ─────────────────────────────
+# macOS junk
+# ─────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─────────────────────────────
+# Config / secrets (API keys)
+# ─────────────────────────────
+Config.xcconfig
+Secrets.xcconfig
+.env
+*.env
+
+# ─────────────────────────────
+# Sandbox files
+# ─────────────────────────────
+Sandbox/
+
+# ─────────────────────────────
+# Resource files
+# ─────────────────────────────
+VocaGrande/Resources/models/*.bin
+
+# ─────────────────────────────
+# Claude
+# ─────────────────────────────
+CLAUDE.md
+
+
+# ─────────────────────────────
+# Prebuilt frameworks (rebuild from ~/Developer/whisper.cpp)
+# ─────────────────────────────
+whisper.xcframework/
