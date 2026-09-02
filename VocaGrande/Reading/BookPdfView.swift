@@ -27,6 +27,14 @@ final class BookPdfController {
     /// read out of it.
     var sessionImages: [PersistentIdentifier: NSImage] = [:]
 
+    /// What the API is doing for each capture right now, or how its last job ended.
+    /// Session-only, like `sessionImages`. An entry appears when a read or clean
+    /// starts, goes away when it succeeds, and stays as `.failed` until the next try.
+    var activities: [PersistentIdentifier: CaptureActivity] = [:]
+
+    private let imageReader = ImageReader()
+    private let textCleaner = TextCleaner()
+
     /// The text highlighted in the book right now, or nil when nothing is selected.
     /// Only drives the sidebar's `+` button being enabled; captures read the live
     /// selection instead.
@@ -77,20 +85,83 @@ final class BookPdfController {
         selectedText = nil
     }
 
-    /// Saves an image dragged out of the book. Captures made this way have no text
-    /// of their own until the API reads them.
+    /// Saves an image dragged out of the book, then starts reading its text. Captures
+    /// made this way have no text of their own until that read lands.
     private func captureImage(_ image: NSImage) {
         let item = TextSelectionItem()
         save(item)
         // Keyed after saving, when the id is permanent and matches what the sidebar's
         // query hands back.
         sessionImages[item.persistentModelID] = image
+        read(item)
     }
 
-    /// Removes a capture from the store, and forgets its session image if it had one.
+    /// Reads the text printed in a capture's image into `selectionText`. Does
+    /// nothing for a capture whose image is gone, which after a relaunch is all of
+    /// them, or one the API is already working on.
+    func read(_ item: TextSelectionItem) {
+        let id = item.persistentModelID
+        guard let image = sessionImages[id], !isBusy(id) else { return }
+        run(.reading, for: item, or: "read the image") {
+            try await self.imageReader.read(image)
+        } store: { item, text in
+            item.selectionText = text
+        }
+    }
+
+    /// Cleans a capture's text into `cleanedText`, as `TextCleaner.instructions` asks.
+    /// Does nothing when there is no text yet, or the API is already working on it.
+    func clean(_ item: TextSelectionItem) {
+        let id = item.persistentModelID
+        guard let text = item.selectionText, !text.isEmpty, !isBusy(id) else { return }
+        run(.cleaning, for: item, or: "clean the text") {
+            try await self.textCleaner.clean(text)
+        } store: { item, cleaned in
+            item.cleanedText = cleaned
+        }
+    }
+
+    /// Runs one API job for a capture and records how it went: what the job
+    /// returns is stored on the item and saved, or the failure is kept for the row
+    /// to show. A capture deleted while the job ran is left alone.
+    private func run(
+        _ activity: CaptureActivity,
+        for item: TextSelectionItem,
+        or action: String,
+        job: @escaping () async throws -> String,
+        store: @escaping (TextSelectionItem, String) -> Void
+    ) {
+        let id = item.persistentModelID
+        activities[id] = activity
+        Task {
+            do {
+                let result = try await job()
+                guard !item.isDeleted else { return }
+                store(item, result)
+                activities[id] = nil
+                if let modelContext {
+                    saveChanges(modelContext, or: action)
+                }
+            } catch {
+                print("Couldn't \(action): \(error)")
+                activities[id] = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func isBusy(_ id: PersistentIdentifier) -> Bool {
+        switch activities[id] {
+        case .reading, .cleaning: true
+        case .failed, nil: false
+        }
+    }
+
+    /// Removes a capture from the store, and forgets its session image and any
+    /// activity it had.
     func delete(_ item: TextSelectionItem) {
         guard let modelContext else { return }
         sessionImages[item.persistentModelID] = nil
+        activities[item.persistentModelID] = nil
         modelContext.delete(item)
         saveChanges(modelContext, or: "delete the capture")
     }

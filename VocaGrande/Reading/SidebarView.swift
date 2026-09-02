@@ -51,6 +51,9 @@ struct SidebarView: View {
                 TextSelectionRow(
                     item: item,
                     image: controller.sessionImages[item.persistentModelID],
+                    activity: controller.activities[item.persistentModelID],
+                    onRead: { controller.read(item) },
+                    onClean: { controller.clean(item) },
                     onDelete: { controller.delete(item) }
                 )
             }

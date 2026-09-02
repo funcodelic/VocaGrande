@@ -22,6 +22,15 @@ struct TextSelectionRow: View {
     /// The image this capture was dragged as, if it was and it's still this session.
     let image: NSImage?
 
+    /// What the API is doing for this capture, or how its last job ended, if anything.
+    let activity: CaptureActivity?
+
+    /// Called to read the text out of the image, or to try again after a failure.
+    let onRead: () -> Void
+
+    /// Called to clean the captured text, or to try again after a failure.
+    let onClean: () -> Void
+
     /// Called once the user has confirmed deleting this capture.
     let onDelete: () -> Void
 
@@ -29,12 +38,30 @@ struct TextSelectionRow: View {
 
     @State private var isConfirmingDelete = false
 
-    init(item: TextSelectionItem, image: NSImage?, onDelete: @escaping () -> Void) {
+    init(
+        item: TextSelectionItem,
+        image: NSImage?,
+        activity: CaptureActivity?,
+        onRead: @escaping () -> Void,
+        onClean: @escaping () -> Void,
+        onDelete: @escaping () -> Void
+    ) {
         self.item = item
         self.image = image
+        self.activity = activity
+        self.onRead = onRead
+        self.onClean = onClean
         self.onDelete = onDelete
         // An image capture has no text of its own yet, so open on the image.
         _stage = State(initialValue: image == nil ? .original : .image)
+    }
+
+    private var hasSelectionText: Bool {
+        !(item.selectionText ?? "").isEmpty
+    }
+
+    private var hasCleanedText: Bool {
+        !(item.cleanedText ?? "").isEmpty
     }
 
     var body: some View {
@@ -47,19 +74,28 @@ struct TextSelectionRow: View {
             .frame(height: Self.contentHeight)
         }
         .padding(.vertical, 4)
+        .onChange(of: activity) { old, _ in
+            // Once the image has been read, show what came out of it: the text,
+            // or why there isn't any.
+            if old == .reading, stage == .image {
+                stage = .original
+            }
+        }
     }
 
     private var stageButtons: some View {
         HStack(spacing: 10) {
             ForEach(CaptureStage.allCases) { candidate in
                 Button {
-                    stage = candidate
+                    show(candidate)
                 } label: {
                     Image(systemName: candidate.symbol)
                         .imageScale(.medium)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(candidate == stage ? Color.blue : Color.secondary)
+                .opacity(isDisabled(candidate) ? 0.35 : 1)
+                .disabled(isDisabled(candidate))
                 .help(candidate.label)
             }
 
@@ -81,12 +117,35 @@ struct TextSelectionRow: View {
         }
     }
 
+    /// Switches the row to a stage, and starts the work that fills it in when
+    /// there is nothing there yet.
+    private func show(_ candidate: CaptureStage) {
+        stage = candidate
+        if candidate == .cleaned, !hasCleanedText, hasSelectionText, activity == nil {
+            onClean()
+        }
+    }
+
+    /// The text can't be shown while the image is still being read, and there is
+    /// nothing to clean until there is text.
+    private func isDisabled(_ candidate: CaptureStage) -> Bool {
+        switch candidate {
+        case .original: activity == .reading
+        case .image: false
+        case .cleaned: !hasSelectionText
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
         switch stage {
         case .original:
             if let selectionText = item.selectionText, !selectionText.isEmpty {
                 text(selectionText)
+            } else if activity == .reading {
+                progress("Reading the image…")
+            } else if case .failed(let message)? = activity, image != nil {
+                failure(message, retry: onRead)
             } else {
                 placeholder("No text captured")
             }
@@ -101,6 +160,10 @@ struct TextSelectionRow: View {
         case .cleaned:
             if let cleanedText = item.cleanedText, !cleanedText.isEmpty {
                 text(cleanedText)
+            } else if activity == .cleaning {
+                progress("Cleaning…")
+            } else if case .failed(let message)? = activity, hasSelectionText {
+                failure(message, retry: onClean)
             } else {
                 placeholder("Not cleaned yet")
             }
@@ -120,12 +183,38 @@ struct TextSelectionRow: View {
             .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private func progress(_ string: String) -> some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .controlSize(.small)
+            Text(string)
+                .font(.callout)
+                .foregroundStyle(.tertiary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func failure(_ message: String, retry: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Button("Try again", action: retry)
+                .buttonStyle(.link)
+                .font(.callout)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
 
 #Preview {
     TextSelectionRow(
         item: TextSelectionItem(selectionText: "el sustantivo y el adjetivo"),
         image: nil,
+        activity: nil,
+        onRead: {},
+        onClean: {},
         onDelete: {}
     )
         .frame(width: 200)

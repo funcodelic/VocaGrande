@@ -30,11 +30,25 @@
 		1131A9B0303211E100379A00 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 		1131A9B430321AAE00379A00 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		1131A9B63032294100379A00 /* whisper.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = whisper.xcframework; sourceTree = "<group>"; };
+		11B7A1D23047C1A200E4C0DE /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		118CDCF03047B88B0078D1CA /* Exceptions for "VocaGrande" folder in "VocaGrande" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1131A99F30320FE500379A00 /* VocaGrande */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1131A9A230320FE500379A00 /* VocaGrande */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				118CDCF03047B88B0078D1CA /* Exceptions for "VocaGrande" folder in "VocaGrande" target */,
+			);
 			path = VocaGrande;
 			sourceTree = "<group>";
 		};
@@ -64,6 +78,7 @@
 				1131A9B63032294100379A00 /* whisper.xcframework */,
 				1131A9B430321AAE00379A00 /* CLAUDE.md */,
 				1131A9B0303211E100379A00 /* .gitignore */,
+				11B7A1D23047C1A200E4C0DE /* Config.xcconfig */,
 				1131A9A230320FE500379A00 /* VocaGrande */,
 				1131A9A130320FE500379A00 /* Products */,
 			);
@@ -161,6 +176,7 @@
 /* Begin XCBuildConfiguration section */
 		1131A9AB30320FE600379A00 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 11B7A1D23047C1A200E4C0DE /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -225,6 +241,7 @@
 		};
 		1131A9AC30320FE600379A00 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 11B7A1D23047C1A200E4C0DE /* Config.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -290,10 +307,12 @@
 				DEVELOPMENT_TEAM = MHB45K4YJR;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VocaGrande/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VocaGrande uses your microphone to record your Spanish practice and transcribe it locally on this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -324,10 +343,12 @@
 				DEVELOPMENT_TEAM = MHB45K4YJR;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VocaGrande/Info.plist;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "VocaGrande uses your microphone to record your Spanish practice and transcribe it locally on this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
