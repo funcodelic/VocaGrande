@@ -8,11 +8,13 @@
 import Foundation
 
 /// Which version of a capture a row is showing: what came out of the book,
-/// the image it was taken from, or the cleaned-up text from the API.
+/// the image it was taken from, the cleaned-up text from the API, or its
+/// English translation.
 enum CaptureStage: CaseIterable, Identifiable {
     case original
     case image
     case cleaned
+    case translated
 
     var id: Self { self }
 
@@ -21,6 +23,7 @@ enum CaptureStage: CaseIterable, Identifiable {
         case .original: "doc.plaintext"
         case .image: "photo"
         case .cleaned: "sparkles"
+        case .translated: "arrow.right"
         }
     }
 
@@ -29,6 +32,7 @@ enum CaptureStage: CaseIterable, Identifiable {
         case .original: "Original text"
         case .image: "Captured image"
         case .cleaned: "Cleaned text"
+        case .translated: "English translation"
         }
     }
 }

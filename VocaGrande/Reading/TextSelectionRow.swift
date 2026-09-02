@@ -31,6 +31,9 @@ struct TextSelectionRow: View {
     /// Called to clean the captured text, or to try again after a failure.
     let onClean: () -> Void
 
+    /// Called to translate the cleaned text, or to try again after a failure.
+    let onTranslate: () -> Void
+
     /// Called once the user has confirmed deleting this capture.
     let onDelete: () -> Void
 
@@ -44,6 +47,7 @@ struct TextSelectionRow: View {
         activity: CaptureActivity?,
         onRead: @escaping () -> Void,
         onClean: @escaping () -> Void,
+        onTranslate: @escaping () -> Void,
         onDelete: @escaping () -> Void
     ) {
         self.item = item
@@ -51,6 +55,7 @@ struct TextSelectionRow: View {
         self.activity = activity
         self.onRead = onRead
         self.onClean = onClean
+        self.onTranslate = onTranslate
         self.onDelete = onDelete
         // An image capture has no text of its own yet, so open on the image.
         _stage = State(initialValue: image == nil ? .original : .image)
@@ -62,6 +67,10 @@ struct TextSelectionRow: View {
 
     private var hasCleanedText: Bool {
         !(item.cleanedText ?? "").isEmpty
+    }
+
+    private var hasTranslatedText: Bool {
+        !(item.translatedText ?? "").isEmpty
     }
 
     var body: some View {
@@ -124,15 +133,20 @@ struct TextSelectionRow: View {
         if candidate == .cleaned, !hasCleanedText, hasSelectionText, activity == nil {
             onClean()
         }
+        if candidate == .translated, !hasTranslatedText, hasCleanedText, activity == nil {
+            onTranslate()
+        }
     }
 
-    /// The text can't be shown while the image is still being read, and there is
-    /// nothing to clean until there is text.
+    /// The text can't be shown while the image is still being read, there is
+    /// nothing to clean until there is text, and nothing to translate until it's
+    /// been cleaned.
     private func isDisabled(_ candidate: CaptureStage) -> Bool {
         switch candidate {
         case .original: activity == .reading
         case .image: false
         case .cleaned: !hasSelectionText
+        case .translated: !hasCleanedText
         }
     }
 
@@ -166,6 +180,16 @@ struct TextSelectionRow: View {
                 failure(message, retry: onClean)
             } else {
                 placeholder("Not cleaned yet")
+            }
+        case .translated:
+            if let translatedText = item.translatedText, !translatedText.isEmpty {
+                text(translatedText)
+            } else if activity == .translating {
+                progress("Translating…")
+            } else if case .failed(let message)? = activity, hasCleanedText {
+                failure(message, retry: onTranslate)
+            } else {
+                placeholder("Not translated yet")
             }
         }
     }
@@ -215,6 +239,7 @@ struct TextSelectionRow: View {
         activity: nil,
         onRead: {},
         onClean: {},
+        onTranslate: {},
         onDelete: {}
     )
         .frame(width: 200)

@@ -14,9 +14,10 @@ import SwiftData
 // - A capture made by selecting text stores it in selectionText.
 // - A capture made from an image starts with selectionText nil. Later the image is
 //   read to fill in selectionText with the raw, uncleaned text.
-// - cleanedText and translatedText belong to later stages.
+// - cleanedText and translatedText belong to later stages, each made from the one before.
 // - The prompts that produce them are not stored here. They live with the code that
-//   sends them, in the Chat folder: `ImageReader.instructions`, `TextCleaner.instructions`.
+//   sends them, in the Chat folder: `ImageReader.instructions`, `TextCleaner.instructions`,
+//   `TextTranslator.instructions`.
 
 /// One piece of text captured out of the book, persisted with SwiftData.
 @Model
@@ -33,7 +34,7 @@ final class TextSelectionItem {
     /// gone, the author's wording untouched. Nil until it has been cleaned.
     var cleanedText: String?
 
-    /// The translated text, for later.
+    /// The cleaned text in English. Nil until it has been translated.
     var translatedText: String?
 
     /// A text capture passes `selectionText`; an image capture passes nothing and

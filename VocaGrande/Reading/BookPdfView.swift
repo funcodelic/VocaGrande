@@ -28,12 +28,14 @@ final class BookPdfController {
     var sessionImages: [PersistentIdentifier: NSImage] = [:]
 
     /// What the API is doing for each capture right now, or how its last job ended.
-    /// Session-only, like `sessionImages`. An entry appears when a read or clean
-    /// starts, goes away when it succeeds, and stays as `.failed` until the next try.
+    /// Session-only, like `sessionImages`. An entry appears when a read, clean or
+    /// translation starts, goes away when it succeeds, and stays as `.failed` until
+    /// the next try.
     var activities: [PersistentIdentifier: CaptureActivity] = [:]
 
     private let imageReader = ImageReader()
     private let textCleaner = TextCleaner()
+    private let textTranslator = TextTranslator()
 
     /// The text highlighted in the book right now, or nil when nothing is selected.
     /// Only drives the sidebar's `+` button being enabled; captures read the live
@@ -121,6 +123,19 @@ final class BookPdfController {
         }
     }
 
+    /// Translates a capture's cleaned text into `translatedText`, as
+    /// `TextTranslator.instructions` asks. Does nothing when the text hasn't been
+    /// cleaned yet, or the API is already working on it.
+    func translate(_ item: TextSelectionItem) {
+        let id = item.persistentModelID
+        guard let text = item.cleanedText, !text.isEmpty, !isBusy(id) else { return }
+        run(.translating, for: item, or: "translate the text") {
+            try await self.textTranslator.translate(text)
+        } store: { item, translated in
+            item.translatedText = translated
+        }
+    }
+
     /// Runs one API job for a capture and records how it went: what the job
     /// returns is stored on the item and saved, or the failure is kept for the row
     /// to show. A capture deleted while the job ran is left alone.
@@ -151,7 +166,7 @@ final class BookPdfController {
 
     private func isBusy(_ id: PersistentIdentifier) -> Bool {
         switch activities[id] {
-        case .reading, .cleaning: true
+        case .reading, .cleaning, .translating: true
         case .failed, nil: false
         }
     }

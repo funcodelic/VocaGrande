@@ -54,6 +54,7 @@ struct SidebarView: View {
                     activity: controller.activities[item.persistentModelID],
                     onRead: { controller.read(item) },
                     onClean: { controller.clean(item) },
+                    onTranslate: { controller.translate(item) },
                     onDelete: { controller.delete(item) }
                 )
             }
