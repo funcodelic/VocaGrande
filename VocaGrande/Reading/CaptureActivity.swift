@@ -21,6 +21,9 @@ enum CaptureActivity: Equatable {
     /// `cleanedText` is being translated into `translatedText`.
     case translating
 
-    /// The last read, clean or translation failed, with the reason to show.
+    /// `cleanedText` is being parsed into `lexemes`.
+    case parsing
+
+    /// The last read, clean, translation or parse failed, with the reason to show.
     case failed(String)
 }

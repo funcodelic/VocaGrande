@@ -15,9 +15,11 @@ import SwiftData
 // - A capture made from an image starts with selectionText nil. Later the image is
 //   read to fill in selectionText with the raw, uncleaned text.
 // - cleanedText and translatedText belong to later stages, each made from the one before.
+// - lexemes are the words parsed out of cleanedText. They are shared: one `Lexeme` per
+//   word across the whole store, linked to every capture it appears in.
 // - The prompts that produce them are not stored here. They live with the code that
 //   sends them, in the Chat folder: `ImageReader.instructions`, `TextCleaner.instructions`,
-//   `TextTranslator.instructions`.
+//   `TextTranslator.instructions`, `WordParser.instructions`.
 
 /// One piece of text captured out of the book, persisted with SwiftData.
 @Model
@@ -36,6 +38,10 @@ final class TextSelectionItem {
 
     /// The cleaned text in English. Nil until it has been translated.
     var translatedText: String?
+
+    /// The words parsed out of `cleanedText`, one lexeme per dictionary word, each
+    /// shared with every other capture it appears in. Empty until parsed.
+    var lexemes: [Lexeme] = []
 
     /// A text capture passes `selectionText`; an image capture passes nothing and
     /// gets its text later.

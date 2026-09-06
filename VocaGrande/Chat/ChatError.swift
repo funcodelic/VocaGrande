@@ -24,6 +24,10 @@ enum ChatError: LocalizedError {
     /// The API answered, but with no text in the reply.
     case emptyReply
 
+    /// The API answered, but not in the form asked for: text where the request
+    /// wanted JSON, or JSON of another shape.
+    case malformedReply
+
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
@@ -34,6 +38,8 @@ enum ChatError: LocalizedError {
             message
         case .emptyReply:
             "Chat replied with no text."
+        case .malformedReply:
+            "Chat replied in a form the app couldn't read."
         }
     }
 }

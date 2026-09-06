@@ -34,6 +34,9 @@ struct TextSelectionRow: View {
     /// Called to translate the cleaned text, or to try again after a failure.
     let onTranslate: () -> Void
 
+    /// Called to parse the cleaned text into words, or to try again after a failure.
+    let onParse: () -> Void
+
     /// Called once the user has confirmed deleting this capture.
     let onDelete: () -> Void
 
@@ -48,6 +51,7 @@ struct TextSelectionRow: View {
         onRead: @escaping () -> Void,
         onClean: @escaping () -> Void,
         onTranslate: @escaping () -> Void,
+        onParse: @escaping () -> Void,
         onDelete: @escaping () -> Void
     ) {
         self.item = item
@@ -56,6 +60,7 @@ struct TextSelectionRow: View {
         self.onRead = onRead
         self.onClean = onClean
         self.onTranslate = onTranslate
+        self.onParse = onParse
         self.onDelete = onDelete
         // An image capture has no text of its own yet, so open on the image.
         _stage = State(initialValue: image == nil ? .original : .image)
@@ -71,6 +76,16 @@ struct TextSelectionRow: View {
 
     private var hasTranslatedText: Bool {
         !(item.translatedText ?? "").isEmpty
+    }
+
+    private var hasWords: Bool {
+        !item.lexemes.isEmpty
+    }
+
+    /// The capture's words in alphabetical order. The relationship itself keeps
+    /// no order.
+    private var sortedLexemes: [Lexeme] {
+        item.lexemes.sorted(using: SortDescriptor(\Lexeme.lemma, comparator: .localizedStandard))
     }
 
     var body: some View {
@@ -136,17 +151,20 @@ struct TextSelectionRow: View {
         if candidate == .translated, !hasTranslatedText, hasCleanedText, activity == nil {
             onTranslate()
         }
+        if candidate == .words, !hasWords, hasCleanedText, activity == nil {
+            onParse()
+        }
     }
 
     /// The text can't be shown while the image is still being read, there is
-    /// nothing to clean until there is text, and nothing to translate until it's
-    /// been cleaned.
+    /// nothing to clean until there is text, and nothing to translate or parse
+    /// until it's been cleaned.
     private func isDisabled(_ candidate: CaptureStage) -> Bool {
         switch candidate {
         case .original: activity == .reading
         case .image: false
         case .cleaned: !hasSelectionText
-        case .translated: !hasCleanedText
+        case .translated, .words: !hasCleanedText
         }
     }
 
@@ -190,6 +208,20 @@ struct TextSelectionRow: View {
                 failure(message, retry: onTranslate)
             } else {
                 placeholder("Not translated yet")
+            }
+        case .words:
+            if hasWords {
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(sortedLexemes) { lexeme in
+                        LexemeRow(lexeme: lexeme)
+                    }
+                }
+            } else if activity == .parsing {
+                progress("Finding the Spanish words…")
+            } else if case .failed(let message)? = activity, hasCleanedText {
+                failure(message, retry: onParse)
+            } else {
+                placeholder("No words yet")
             }
         }
     }
@@ -240,9 +272,10 @@ struct TextSelectionRow: View {
         onRead: {},
         onClean: {},
         onTranslate: {},
+        onParse: {},
         onDelete: {}
     )
         .frame(width: 200)
         .padding()
-        .modelContainer(for: TextSelectionItem.self, inMemory: true)
+        .modelContainer(for: [TextSelectionItem.self, Lexeme.self], inMemory: true)
 }

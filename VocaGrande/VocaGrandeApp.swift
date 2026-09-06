@@ -25,6 +25,7 @@ struct VocaGrandeApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             TextSelectionItem.self,
+            Lexeme.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

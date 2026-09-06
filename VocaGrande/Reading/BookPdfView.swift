@@ -28,14 +28,15 @@ final class BookPdfController {
     var sessionImages: [PersistentIdentifier: NSImage] = [:]
 
     /// What the API is doing for each capture right now, or how its last job ended.
-    /// Session-only, like `sessionImages`. An entry appears when a read, clean or
-    /// translation starts, goes away when it succeeds, and stays as `.failed` until
-    /// the next try.
+    /// Session-only, like `sessionImages`. An entry appears when a read, clean,
+    /// translation or parse starts, goes away when it succeeds, and stays as
+    /// `.failed` until the next try.
     var activities: [PersistentIdentifier: CaptureActivity] = [:]
 
     private let imageReader = ImageReader()
     private let textCleaner = TextCleaner()
     private let textTranslator = TextTranslator()
+    private let wordParser = WordParser(languageCode: "es")
 
     /// The text highlighted in the book right now, or nil when nothing is selected.
     /// Only drives the sidebar's `+` button being enabled; captures read the live
@@ -136,15 +137,59 @@ final class BookPdfController {
         }
     }
 
+    /// Parses a capture's cleaned text into its Spanish words, as
+    /// `WordParser.instructions` asks, and links the capture to one lexeme per
+    /// word: an existing one when the word has been seen before, a new one
+    /// otherwise. Does nothing when the text hasn't been cleaned yet, or the API is
+    /// already working on it.
+    func parse(_ item: TextSelectionItem) {
+        let id = item.persistentModelID
+        guard let modelContext, let text = item.cleanedText, !text.isEmpty, !isBusy(id) else { return }
+        run(.parsing, for: item, or: "parse the words") {
+            try await self.wordParser.parse(text)
+        } store: { item, words in
+            item.lexemes = self.lexemes(for: words, in: modelContext)
+        }
+    }
+
+    /// The lexemes for parsed words: those already in the store, found by lemma,
+    /// plus new ones inserted for words not seen before. An existing word keeps
+    /// the meaning it has, unless it had none. Should the lookup fail, the
+    /// uniqueness of `Lexeme.lemma` still stops the save from duplicating a word.
+    private func lexemes(for words: [WordParser.Word], in modelContext: ModelContext) -> [Lexeme] {
+        let lemmas = words.map(\.lemma)
+        let existing = (try? modelContext.fetch(
+            FetchDescriptor<Lexeme>(predicate: #Predicate { lemmas.contains($0.lemma) })
+        )) ?? []
+        var byLemma = Dictionary(existing.map { ($0.lemma, $0) }, uniquingKeysWith: { first, _ in first })
+
+        for word in words {
+            if let lexeme = byLemma[word.lemma] {
+                if lexeme.englishMeaning?.isEmpty ?? true {
+                    lexeme.englishMeaning = word.meaning
+                }
+            } else {
+                let lexeme = Lexeme(
+                    lemma: word.lemma,
+                    englishMeaning: word.meaning,
+                    languageCode: wordParser.languageCode
+                )
+                modelContext.insert(lexeme)
+                byLemma[word.lemma] = lexeme
+            }
+        }
+        return Array(byLemma.values)
+    }
+
     /// Runs one API job for a capture and records how it went: what the job
     /// returns is stored on the item and saved, or the failure is kept for the row
     /// to show. A capture deleted while the job ran is left alone.
-    private func run(
+    private func run<Output>(
         _ activity: CaptureActivity,
         for item: TextSelectionItem,
         or action: String,
-        job: @escaping () async throws -> String,
-        store: @escaping (TextSelectionItem, String) -> Void
+        job: @escaping () async throws -> Output,
+        store: @escaping (TextSelectionItem, Output) -> Void
     ) {
         let id = item.persistentModelID
         activities[id] = activity
@@ -166,7 +211,7 @@ final class BookPdfController {
 
     private func isBusy(_ id: PersistentIdentifier) -> Bool {
         switch activities[id] {
-        case .reading, .cleaning, .translating: true
+        case .reading, .cleaning, .translating, .parsing: true
         case .failed, nil: false
         }
     }
@@ -230,8 +275,17 @@ struct BookPdfView: View {
     /// The sidebar starts hidden; the title-bar button reveals it.
     @State private var isSidebarVisible = false
 
+    /// The vocabulary pane on the left starts hidden too; its own title-bar
+    /// button, at the leading edge, reveals it.
+    @State private var isLexemeListVisible = false
+
     var body: some View {
         HSplitView {
+            if isLexemeListVisible {
+                LexemeList()
+                    .frame(minWidth: 200, idealWidth: 220, maxWidth: 400)
+            }
+
             content
                 .overlay(alignment: .bottom) { pageIndicator }
                 .frame(minWidth: 400)
@@ -243,6 +297,15 @@ struct BookPdfView: View {
         }
         .frame(minWidth: 600, minHeight: 400)
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    isLexemeListVisible.toggle()
+                } label: {
+                    Label("Toggle Vocabulary", systemImage: "sidebar.left")
+                }
+                .help(isLexemeListVisible ? "Hide Vocabulary" : "Show Vocabulary")
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     isSidebarVisible.toggle()
@@ -497,5 +560,5 @@ private extension NSRect {
 #Preview {
     BookPdfView(controller: BookPdfController())
         .frame(width: 1200, height: 800)
-        .modelContainer(for: TextSelectionItem.self, inMemory: true)
+        .modelContainer(for: [TextSelectionItem.self, Lexeme.self], inMemory: true)
 }

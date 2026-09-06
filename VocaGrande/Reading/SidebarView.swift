@@ -55,6 +55,7 @@ struct SidebarView: View {
                     onRead: { controller.read(item) },
                     onClean: { controller.clean(item) },
                     onTranslate: { controller.translate(item) },
+                    onParse: { controller.parse(item) },
                     onDelete: { controller.delete(item) }
                 )
             }
@@ -69,5 +70,5 @@ struct SidebarView: View {
 #Preview {
     SidebarView(controller: BookPdfController())
         .frame(width: 200, height: 800)
-        .modelContainer(for: TextSelectionItem.self, inMemory: true)
+        .modelContainer(for: [TextSelectionItem.self, Lexeme.self], inMemory: true)
 }
