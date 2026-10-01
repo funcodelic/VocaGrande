@@ -45,6 +45,19 @@ struct LexemeRow: View {
                     .font(font)
                     .foregroundStyle(.tertiary)
             }
+
+            if lexeme.notecardCorrectCount > 0 {
+                Spacer(minLength: 6)
+
+                Text("\(lexeme.notecardCorrectCount)")
+                    .font(font.monospacedDigit())
+                    .keyframeAnimator(initialValue: 1.0, trigger: lexeme.notecardCorrectCount) { view, scale in
+                        view.scaleEffect(scale)
+                    } keyframes: { _ in
+                        SpringKeyframe(1.5, duration: 0.15, spring: .snappy)
+                        SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
+                    }
+            }
         }
         .lineLimit(style == .compact ? 1 : nil)
         .truncationMode(.tail)

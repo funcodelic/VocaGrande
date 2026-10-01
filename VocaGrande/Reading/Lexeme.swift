@@ -26,6 +26,14 @@ final class Lexeme {
     /// The language the word is in, as a two-letter code: "es" for Spanish.
     var languageCode: String
 
+    /// How many times the word was answered correctly in the notecard quiz, in
+    /// either direction.
+    var notecardCorrectCount: Int = 0
+
+    /// How many times the word was answered wrongly in the notecard quiz, in
+    /// either direction.
+    var notecardIncorrectCount: Int = 0
+
     /// Every capture this word was parsed out of. The inverse of
     /// `TextSelectionItem.lexemes`; deleting a capture leaves its words behind.
     @Relationship(inverse: \TextSelectionItem.lexemes) var selections: [TextSelectionItem] = []

@@ -15,6 +15,13 @@ struct LexemeList: View {
     @Query(sort: [SortDescriptor(\Lexeme.lemma, comparator: .localizedStandard)])
     private var lexemes: [Lexeme]
 
+    @State private var isShowingQuiz = false
+
+    /// Words answered correctly at least once in the notecard quiz.
+    private var knownCount: Int {
+        lexemes.filter { $0.notecardCorrectCount > 0 }.count
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
@@ -23,9 +30,15 @@ struct LexemeList: View {
 
                 Spacer()
 
-                Text("\(lexemes.count)")
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                NotecardQuizButton(isShowingQuiz: $isShowingQuiz)
+
+                HStack(spacing: 3) {
+                    Text("\(knownCount)")
+                        .foregroundStyle(.green)
+                    Text("/ \(lexemes.count)")
+                        .foregroundStyle(.gray)
+                }
+                .font(.callout.monospacedDigit())
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
