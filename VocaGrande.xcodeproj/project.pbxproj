@@ -31,6 +31,7 @@
 		1131A9B430321AAE00379A00 /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 		1131A9B63032294100379A00 /* whisper.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = whisper.xcframework; sourceTree = "<group>"; };
 		11B7A1D23047C1A200E4C0DE /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		11C0A10030500A0000AB0001 /* VocaGrande-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "VocaGrande-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -57,6 +58,16 @@
 			path = Sandbox;
 			sourceTree = "<group>";
 		};
+		11C0A10030500A0000AB0002 /* iOS */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		11C0A10030500A0000AB0010 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +76,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				1131A9BC30322D3400379A00 /* whisper.xcframework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		11C0A10030500A0000AB0005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +98,8 @@
 				1131A9B0303211E100379A00 /* .gitignore */,
 				11B7A1D23047C1A200E4C0DE /* Config.xcconfig */,
 				1131A9A230320FE500379A00 /* VocaGrande */,
+				11C0A10030500A0000AB0010 /* Shared */,
+				11C0A10030500A0000AB0002 /* iOS */,
 				1131A9A130320FE500379A00 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				1131A9A030320FE500379A00 /* VocaGrande.app */,
+				11C0A10030500A0000AB0001 /* VocaGrande-iOS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -111,12 +132,36 @@
 			fileSystemSynchronizedGroups = (
 				1131A9A230320FE500379A00 /* VocaGrande */,
 				11A8A5EB304613470047244A /* Sandbox */,
+				11C0A10030500A0000AB0010 /* Shared */,
 			);
 			name = VocaGrande;
 			packageProductDependencies = (
 			);
 			productName = VocaGrande;
 			productReference = 1131A9A030320FE500379A00 /* VocaGrande.app */;
+			productType = "com.apple.product-type.application";
+		};
+		11C0A10030500A0000AB0003 /* VocaGrande-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 11C0A10030500A0000AB0007 /* Build configuration list for PBXNativeTarget "VocaGrande-iOS" */;
+			buildPhases = (
+				11C0A10030500A0000AB0004 /* Sources */,
+				11C0A10030500A0000AB0005 /* Frameworks */,
+				11C0A10030500A0000AB0006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				11C0A10030500A0000AB0002 /* iOS */,
+				11C0A10030500A0000AB0010 /* Shared */,
+			);
+			name = "VocaGrande-iOS";
+			packageProductDependencies = (
+			);
+			productName = "VocaGrande-iOS";
+			productReference = 11C0A10030500A0000AB0001 /* VocaGrande-iOS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -130,6 +175,9 @@
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					1131A99F30320FE500379A00 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					11C0A10030500A0000AB0003 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
@@ -149,6 +197,7 @@
 			projectRoot = "";
 			targets = (
 				1131A99F30320FE500379A00 /* VocaGrande */,
+				11C0A10030500A0000AB0003 /* VocaGrande-iOS */,
 			);
 		};
 /* End PBXProject section */
@@ -161,10 +210,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		11C0A10030500A0000AB0006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1131A99C30320FE500379A00 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		11C0A10030500A0000AB0004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -368,6 +431,74 @@
 			};
 			name = Release;
 		};
+		11C0A10030500A0000AB0008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MHB45K4YJR;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VocaGrande/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.funcodelic.VocaGrande.iOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		11C0A10030500A0000AB0009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MHB45K4YJR;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VocaGrande/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.funcodelic.VocaGrande.iOS;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -385,6 +516,15 @@
 			buildConfigurations = (
 				1131A9AE30320FE600379A00 /* Debug */,
 				1131A9AF30320FE600379A00 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		11C0A10030500A0000AB0007 /* Build configuration list for PBXNativeTarget "VocaGrande-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				11C0A10030500A0000AB0008 /* Debug */,
+				11C0A10030500A0000AB0009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

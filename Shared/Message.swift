@@ -5,7 +5,6 @@
 //  Created by Troy Mulder on 9/1/26.
 //
 
-import AppKit
 import Foundation
 
 /// One turn in what we send the model: who is speaking, and what they say. What
@@ -25,7 +24,7 @@ struct Message {
     /// calls these content parts.
     enum Content {
         case text(String)
-        case image(NSImage)
+        case image(PlatformImage)
     }
 
     let role: Role
@@ -42,7 +41,7 @@ struct Message {
     }
 
     /// What the user says, with an image after the text when there is one.
-    static func user(_ text: String, image: NSImage? = nil) -> Message {
+    static func user(_ text: String, image: PlatformImage? = nil) -> Message {
         var content: [Content] = [.text(text)]
         if let image {
             content.append(.image(image))

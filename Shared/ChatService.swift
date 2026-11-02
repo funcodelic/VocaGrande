@@ -5,7 +5,6 @@
 //  Created by Troy Mulder on 9/1/26.
 //
 
-import AppKit
 import Foundation
 
 /// Sends messages to OpenAI's Responses API and hands back the reply text.
@@ -112,7 +111,7 @@ struct ChatService {
             case .text(let string):
                 self = .text(string)
             case .image(let image):
-                guard let png = image.pngData() else { throw ChatError.unreadableImage }
+                guard let png = image.encodedPNG() else { throw ChatError.unreadableImage }
                 self = .image(dataURL: "data:image/png;base64," + png.base64EncodedString())
             }
         }
@@ -153,14 +152,5 @@ struct ChatService {
             let message: String
         }
         let error: APIError?
-    }
-}
-
-private extension NSImage {
-    /// The image as PNG, at its full pixel size.
-    func pngData() -> Data? {
-        guard let tiff = tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff) else { return nil }
-        return bitmap.representation(using: .png, properties: [:])
     }
 }

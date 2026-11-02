@@ -7,6 +7,20 @@
 
 import SwiftData
 
+/// A noun's grammatical gender. Spanish and Italian use only the first two.
+enum Gender: String, Codable {
+    case masculine
+    case feminine
+
+    /// The Spanish definite article: "el" or "la".
+    var article: String {
+        switch self {
+        case .masculine: "el"
+        case .feminine: "la"
+        }
+    }
+}
+
 /// One word of vocabulary, persisted with SwiftData. There is one `Lexeme` per
 /// dictionary word: `lemma` is unique, so a word met again in a later capture is
 /// the same lexeme, now linked to both captures.
@@ -26,6 +40,10 @@ final class Lexeme {
     /// The language the word is in, as a two-letter code: "es" for Spanish.
     var languageCode: String
 
+    /// The grammatical gender of a noun. Nil for words that have none (verbs,
+    /// adverbs) and for words not yet marked.
+    var gender: Gender?
+
     /// How many times the word was answered correctly in the notecard quiz, in
     /// either direction.
     var notecardCorrectCount: Int = 0
@@ -41,10 +59,12 @@ final class Lexeme {
     init(
         lemma: String,
         englishMeaning: String? = nil,
-        languageCode: String
+        languageCode: String,
+        gender: Gender? = nil
     ) {
         self.lemma = lemma
         self.englishMeaning = englishMeaning
         self.languageCode = languageCode
+        self.gender = gender
     }
 }
