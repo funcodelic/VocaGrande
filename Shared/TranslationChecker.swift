@@ -5,14 +5,23 @@
 //  Created by Troy Mulder on 11/1/26.
 //
 //  Asks the model whether a word in the learner's native language and a word in the
-//  language being learned mean the same thing.
+//  language being learned mean the same thing, and which meaning that is.
 
 import Foundation
 
 struct TranslationChecker {
 
-    /// The developer message sent ahead of the pair. Asks for one word back so the
-    /// reply is trivial to read.
+    /// What a check found: whether the pair matches, and for a match, the gloss of
+    /// the meaning it matches in.
+    struct Result {
+        let isCorrect: Bool
+
+        /// A short description of the matched meaning; nil for a wrong pair.
+        let gloss: String?
+    }
+
+    /// The developer message sent ahead of the pair. Asks for a fixed two-line reply
+    /// so it is trivial to read.
     static func instructions(native: String, target: String) -> String {
         """
         You check vocabulary. You are given a \(native) word or phrase and a \(target) \
@@ -26,25 +35,37 @@ struct TranslationChecker {
         If the \(target) word is a noun, the gender must be correct, so reject masculine \
         for a feminine noun and feminine for a masculine one, and reject na. If the \
         \(target) word is not a noun, the gender must be na. \
-        Reply with exactly one word: correct or incorrect.
+        Reply on exactly two lines. Line 1: one word, correct or incorrect. Line 2: when \
+        correct, a gloss of the meaning in which the \(native) translates the \(target), \
+        written in \(native): a short description of at most eight words, lowercase, \
+        with no final period, that tells this meaning apart from the \(target) word's \
+        other meanings (for example, for Spanish banca and English bank: financial \
+        institution). When incorrect, leave line 2 empty.
         """
     }
 
     private let service = ChatService()
 
-    /// Returns whether `native` translates `target`, and whether `gender` is right
+    /// Checks whether `native` translates `target`, and whether `gender` is right
     /// for it (nil meaning "na", the word is not a noun).
-    func isCorrect(
+    func check(
         native: String,
         nativeLanguage: String,
         target: String,
         targetLanguage: String,
         gender: Gender?
-    ) async throws -> Bool {
+    ) async throws -> Result {
         let reply = try await service.send([
             .developer(Self.instructions(native: nativeLanguage, target: targetLanguage)),
             .user("\(nativeLanguage): \(native)\n\(targetLanguage): \(target)\nGender: \(gender?.rawValue ?? "na")"),
         ])
-        return reply.lowercased().hasPrefix("correct")
+
+        let lines = reply
+            .split(whereSeparator: \.isNewline)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let isCorrect = lines.first?.lowercased().hasPrefix("correct") ?? false
+        let gloss = isCorrect && lines.count > 1 ? lines[1] : nil
+        return Result(isCorrect: isCorrect, gloss: gloss)
     }
 }

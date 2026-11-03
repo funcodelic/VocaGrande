@@ -43,6 +43,14 @@ struct LexemeDetailiOS: View {
     @State private var native: String
     @State private var target: String
     @State private var gender: Gender?
+
+    /// The description of the meaning of one pair of words, shown under the word
+    /// while the fields still hold that pair.
+    @State private var gloss: String?
+
+    /// The pair `gloss` describes, as `pairKey`. Editing a field hides the gloss, and
+    /// putting the pair back brings it back.
+    @State private var glossPairKey: String?
     @State private var checkResult: CheckResult?
     @State private var isChecking = false
     @FocusState private var focusedField: Field?
@@ -59,6 +67,8 @@ struct LexemeDetailiOS: View {
         _native = State(initialValue: lexeme?.englishMeaning ?? "")
         _target = State(initialValue: lexeme?.lemma ?? "")
         _gender = State(initialValue: lexeme?.gender)
+        _gloss = State(initialValue: lexeme?.gloss)
+        _glossPairKey = State(initialValue: lexeme.map { Self.pairKey(native: $0.englishMeaning ?? "", target: $0.lemma) })
     }
 
     private var nativeName: String {
@@ -73,6 +83,16 @@ struct LexemeDetailiOS: View {
     /// language the word is being added from.
     private var accentColor: Color {
         showsNativeFirst ? nativeColor : language.color
+    }
+
+    /// A pair of words as one comparable string: trimmed and lowercased.
+    private static func pairKey(native: String, target: String) -> String {
+        "\(native.trimmed.lowercased())|\(target.trimmed.lowercased())"
+    }
+
+    /// The gloss, only while the fields hold the pair it was made for.
+    private var shownGloss: String? {
+        glossPairKey == Self.pairKey(native: native, target: target) ? gloss : nil
     }
 
     private var canCheck: Bool {
@@ -161,6 +181,13 @@ struct LexemeDetailiOS: View {
 
                 preview
                     .padding(.top, 24)
+
+                if let shownGloss {
+                    Text(shownGloss)
+                        .font(.callout)
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+                }
 
                 Spacer()
             }
@@ -270,21 +297,31 @@ struct LexemeDetailiOS: View {
     @ViewBuilder
     private var preview: some View {
         if !target.trimmed.isEmpty {
-            HStack(spacing: 8) {
-                if let gender {
-                    Text(gender.article(for: language.code))
-                        .foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                // Future consideration: a language label above the word. Tried and set
+                // aside; it distracted from the color coding.
+                // Text(language.name)
+                //     .font(.caption)
+                //     .foregroundStyle(language.color)
+                //     .padding(.leading, 4)
+                //     .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 8) {
+                    if let gender {
+                        Text(gender.article(for: language.code))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(target.trimmed.lowercased())
+                        .foregroundStyle(language.color)
                 }
-                Text(target.trimmed.lowercased())
-                    .foregroundStyle(Color.primary)
-            }
-            .font(.title2)
-            .padding(.vertical, 8)
-            .keyframeAnimator(initialValue: 1.0, trigger: isCorrect) { view, scale in
-                view.scaleEffect(scale)
-            } keyframes: { _ in
-                SpringKeyframe(1.3, duration: 0.15, spring: .snappy)
-                SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
+                .font(.title2)
+                .padding(.vertical, 8)
+                .keyframeAnimator(initialValue: 1.0, trigger: isCorrect) { view, scale in
+                    view.scaleEffect(scale)
+                } keyframes: { _ in
+                    SpringKeyframe(1.3, duration: 0.15, spring: .snappy)
+                    SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
+                }
             }
         }
     }
@@ -319,17 +356,21 @@ struct LexemeDetailiOS: View {
 
         Task {
             do {
-                let isCorrect = try await TranslationChecker().isCorrect(
+                let result = try await TranslationChecker().check(
                     native: native,
                     nativeLanguage: nativeName,
                     target: target,
                     targetLanguage: language.name,
                     gender: gender
                 )
-                if isCorrect, let problem = save(native: native, target: target) {
+                if result.isCorrect, let problem = save(native: native, target: target, gloss: result.gloss) {
                     checkResult = .failed(problem)
                 } else {
-                    checkResult = isCorrect ? .correct : .tryAgain
+                    if result.isCorrect {
+                        gloss = result.gloss
+                        glossPairKey = Self.pairKey(native: native, target: target)
+                    }
+                    checkResult = result.isCorrect ? .correct : .tryAgain
                 }
             } catch {
                 checkResult = .failed(error.localizedDescription)
@@ -340,17 +381,25 @@ struct LexemeDetailiOS: View {
 
     /// Saves the pair into the language right away, rather than waiting for
     /// SwiftData's autosave. A word already in this language keeps the meaning it has
-    /// (a lexeme is unique by language and lemma), but takes the gender chosen here.
+    /// (a lexeme is unique by language and lemma), but takes the gender chosen here,
+    /// and the gloss when it has none and the pair is the meaning it already has.
     /// Returns a message when the save fails.
-    private func save(native: String, target: String) -> String? {
+    private func save(native: String, target: String, gloss: String?) -> String? {
         let lemma = target.lowercased()
         let code = language.code
         let descriptor = FetchDescriptor<Lexeme>(predicate: #Predicate { $0.lemma == lemma && $0.languageCode == code })
 
         if let existing = (try? modelContext.fetch(descriptor))?.first {
+            if let saved = existing.englishMeaning, saved.lowercased() != native.lowercased() {
+                return "\(lemma) is already saved as \"\(saved)\". More meanings arrive with senses."
+            }
             existing.gender = gender
+            if existing.gloss == nil, existing.englishMeaning?.lowercased() == native.lowercased() {
+                existing.gloss = gloss
+            }
         } else {
             let new = Lexeme(lemma: lemma, englishMeaning: native, languageCode: language.code, gender: gender)
+            new.gloss = gloss
             modelContext.insert(new)
             new.language = language
         }

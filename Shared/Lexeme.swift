@@ -45,6 +45,11 @@ final class Lexeme {
     /// A dictionary-short English meaning. Nil until translated.
     var englishMeaning: String?
 
+    /// A short description of the one meaning `englishMeaning` expresses, such as
+    /// "financial institution" for banca / bank. Nil until a check supplies it.
+    /// Stands in until `Sense` owns glosses (build plan stage C).
+    var gloss: String?
+
     /// The language the word is in, as a two-letter code: "es" for Spanish.
     var languageCode: String
 
