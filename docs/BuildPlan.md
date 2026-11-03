@@ -22,7 +22,10 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 **B. Part of speech and the compound key.**
 Add `partOfSpeech` and `homographIndex`. Replace `@Attribute(.unique) lemma` with a uniqueness rule on (lemma, languageCode, partOfSpeech, homographIndex), enforced in code if SwiftData can't express it. Existing rows default to POS "unknown". The ChatGPT parse starts returning POS. This is the riskiest migration, so it goes before anything depends on it.
 
-**C. Sense, owned by Lexeme.**
+**C (built, first version). Sense, owned by Lexeme.**
+Done: `Sense` (translation as plain text, gloss, order), `Lexeme.senses`, `englishMeaning` and `gloss` as computed first-sense values, and `Lexeme.sensesAreExhaustive`. The add screen lists a word's senses and shows "Find more meanings" until the flag is set; `SenseFinder` is the one reusable ChatGPT call (known senses in, only new ones out) that the ? lookup will reuse with an empty known list. Not done: checked state per Sense (E), translations as English Lexemes (D), part of speech.
+
+Original plan:
 New `Sense` model: `gloss` (short English description), `order`, owner `lexeme`. Migrate each existing `englishMeaning` into one Sense on its Lexeme. Keep `englishMeaning` as a computed first-sense gloss so current screens keep working.
 
 **D. English words become Lexemes, linked through Sense.**

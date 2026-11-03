@@ -27,6 +27,7 @@ struct VocaGrandeApp: App {
             TextSelectionItem.self,
             Lexeme.self,
             Language.self,
+            Sense.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

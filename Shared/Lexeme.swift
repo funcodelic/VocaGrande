@@ -5,6 +5,7 @@
 //  Created by Troy Mulder on 9/5/26.
 //
 
+import Foundation
 import SwiftData
 
 /// A noun's grammatical gender. Spanish and Italian use only the first two.
@@ -42,13 +43,14 @@ final class Lexeme {
     /// before inserting any, so an existing word keeps the meaning it already has.
     var lemma: String
 
-    /// A dictionary-short English meaning. Nil until translated.
-    var englishMeaning: String?
+    /// The word's meanings, owned by it. Read them through `orderedSenses`.
+    @Relationship(deleteRule: .cascade, inverse: \Sense.lexeme) var senses: [Sense] = []
 
-    /// A short description of the one meaning `englishMeaning` expresses, such as
-    /// "financial institution" for banca / bank. Nil until a check supplies it.
-    /// Stands in until `Sense` owns glosses (build plan stage C).
-    var gloss: String?
+    /// Whether a search for all of the word's meanings has been done (a full lookup,
+    /// or "find more meanings"), so `senses` is believed complete. False when the
+    /// word was added by asserting one meaning, and false again when a meaning is
+    /// added by hand afterwards.
+    var sensesAreExhaustive: Bool = false
 
     /// The language the word is in, as a two-letter code: "es" for Spanish.
     var languageCode: String
@@ -80,8 +82,60 @@ final class Lexeme {
         gender: Gender? = nil
     ) {
         self.lemma = lemma
-        self.englishMeaning = englishMeaning
         self.languageCode = languageCode
         self.gender = gender
+        self.englishMeaning = englishMeaning
+    }
+
+    /// The senses in order, first to last.
+    var orderedSenses: [Sense] {
+        senses.sorted { $0.order < $1.order }
+    }
+
+    /// The first sense's translation: the dictionary-short native meaning shown in
+    /// lists. Nil until translated. Setting it changes the first sense, or makes one.
+    var englishMeaning: String? {
+        get { orderedSenses.first?.translation }
+        set {
+            guard let newValue, !newValue.isEmpty else { return }
+            if let first = orderedSenses.first {
+                first.translation = newValue
+            } else {
+                senses.append(Sense(translation: newValue, order: 0))
+            }
+        }
+    }
+
+    /// The first sense's gloss, such as "financial institution" for banca / bank.
+    /// Nil until a check supplies it; setting it needs a first sense.
+    var gloss: String? {
+        get { orderedSenses.first?.gloss }
+        set { orderedSenses.first?.gloss = newValue }
+    }
+
+    /// Every sense's translation, for quizzing: any of them is a right answer.
+    var translations: [String] {
+        orderedSenses.map(\.translation).filter { !$0.isEmpty }
+    }
+
+    /// Whether `translation` and `gloss` describe a meaning the word already has: the
+    /// same translation, with the same gloss or no gloss yet.
+    func hasSense(translation: String, gloss: String?) -> Bool {
+        senses.contains { sense in
+            Self.normalized(sense.translation) == Self.normalized(translation)
+                && (sense.gloss == nil || Self.normalized(sense.gloss ?? "") == Self.normalized(gloss ?? ""))
+        }
+    }
+
+    /// Adds a sense after the existing ones and returns it.
+    @discardableResult
+    func addSense(translation: String, gloss: String?) -> Sense {
+        let sense = Sense(translation: translation, gloss: gloss, order: (senses.map(\.order).max() ?? -1) + 1)
+        senses.append(sense)
+        return sense
+    }
+
+    private static func normalized(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 }

@@ -53,6 +53,13 @@ struct LexemeDetailiOS: View {
     @State private var glossPairKey: String?
     @State private var checkResult: CheckResult?
     @State private var isChecking = false
+
+    /// The lexeme this screen is showing or has just saved, whose senses are listed.
+    @State private var savedLexeme: Lexeme?
+    @State private var isFindingSenses = false
+
+    /// A note under the senses, such as "No other meanings found." or an error.
+    @State private var senseMessage: String?
     @FocusState private var focusedField: Field?
 
     /// The cursor in each field, so a letter from the keyboard strip lands where the
@@ -67,6 +74,7 @@ struct LexemeDetailiOS: View {
         _native = State(initialValue: lexeme?.englishMeaning ?? "")
         _target = State(initialValue: lexeme?.lemma ?? "")
         _gender = State(initialValue: lexeme?.gender)
+        _savedLexeme = State(initialValue: lexeme)
         _gloss = State(initialValue: lexeme?.gloss)
         _glossPairKey = State(initialValue: lexeme.map { Self.pairKey(native: $0.englishMeaning ?? "", target: $0.lemma) })
     }
@@ -130,9 +138,10 @@ struct LexemeDetailiOS: View {
                 text: isNative ? $native : $target,
                 selection: isNative ? $nativeSelection : $targetSelection,
                 prompt: Text("\(name) word")
-                    .foregroundStyle((isTop ? color : Color.primary).opacity(0.6))
+                    .foregroundStyle(color.opacity(0.6))
             )
             .font(.title2)
+            .foregroundStyle(color)
             .focused($focusedField, equals: field)
             .submitLabel(isTop ? .next : .done)
             .onSubmit {
@@ -150,7 +159,6 @@ struct LexemeDetailiOS: View {
             VStack(spacing: 20) {
                 if showsNativeFirst {
                     textField(for: .native)
-                        .foregroundStyle(nativeColor)
                     VStack(spacing: 6) {
                         textField(for: .target)
                         genderPicker
@@ -158,7 +166,6 @@ struct LexemeDetailiOS: View {
                 } else {
                     VStack(spacing: 6) {
                         textField(for: .target)
-                            .foregroundStyle(language.color)
                         genderPicker
                     }
                     textField(for: .native)
@@ -177,17 +184,30 @@ struct LexemeDetailiOS: View {
 
                 checkResultView
 
-                Divider()
+                VStack(spacing: 10) {
+                    Divider()
 
-                preview
-                    .padding(.top, 24)
+                    VStack(spacing: 8) {
+                        preview
 
-                if let shownGloss {
-                    Text(shownGloss)
-                        .font(.callout)
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
+                        if let shownGloss {
+                            Text(shownGloss)
+                                .font(.callout)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .padding(.vertical, 4)
+
+                    if savedLexeme != nil {
+                        Divider()
+                    }
                 }
+
+                ScrollView {
+                    sensesSection
+                }
+                .scrollBounceBehavior(.basedOnSize)
 
                 Spacer()
             }
@@ -297,31 +317,20 @@ struct LexemeDetailiOS: View {
     @ViewBuilder
     private var preview: some View {
         if !target.trimmed.isEmpty {
-            VStack(spacing: 12) {
-                // Future consideration: a language label above the word. Tried and set
-                // aside; it distracted from the color coding.
-                // Text(language.name)
-                //     .font(.caption)
-                //     .foregroundStyle(language.color)
-                //     .padding(.leading, 4)
-                //     .frame(maxWidth: .infinity, alignment: .leading)
-
-                HStack(spacing: 8) {
-                    if let gender {
-                        Text(gender.article(for: language.code))
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(target.trimmed.lowercased())
-                        .foregroundStyle(language.color)
+            HStack(spacing: 8) {
+                if let gender {
+                    Text(gender.article(for: language.code))
+                        .foregroundStyle(.secondary)
                 }
-                .font(.title2)
-                .padding(.vertical, 8)
-                .keyframeAnimator(initialValue: 1.0, trigger: isCorrect) { view, scale in
-                    view.scaleEffect(scale)
-                } keyframes: { _ in
-                    SpringKeyframe(1.3, duration: 0.15, spring: .snappy)
-                    SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
-                }
+                Text(target.trimmed.lowercased())
+                    .foregroundStyle(language.color)
+            }
+            .font(.title2)
+            .keyframeAnimator(initialValue: 1.0, trigger: isCorrect) { view, scale in
+                view.scaleEffect(scale)
+            } keyframes: { _ in
+                SpringKeyframe(1.3, duration: 0.15, spring: .snappy)
+                SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
             }
         }
     }
@@ -379,29 +388,111 @@ struct LexemeDetailiOS: View {
         }
     }
 
+    /// Asks for the word's other meanings, giving the ones it has so they aren't
+    /// repeated, and adds every new one. The word is then believed to have all its
+    /// meanings, so the button goes away.
+    private func findMoreSenses() {
+        guard let word = savedLexeme, !isFindingSenses else { return }
+        isFindingSenses = true
+        senseMessage = nil
+
+        let known = word.orderedSenses.map { (translation: $0.translation, gloss: $0.gloss) }
+
+        Task {
+            do {
+                let found = try await SenseFinder().findSenses(
+                    lemma: word.lemma,
+                    targetLanguage: language.name,
+                    nativeLanguage: nativeName,
+                    known: known
+                )
+                var added = 0
+                for candidate in found where !word.hasSense(translation: candidate.translation, gloss: candidate.gloss) {
+                    word.addSense(translation: candidate.translation, gloss: candidate.gloss)
+                    added += 1
+                }
+                word.sensesAreExhaustive = true
+                try modelContext.save()
+                senseMessage = added == 0 ? "No other meanings found." : nil
+            } catch {
+                senseMessage = error.localizedDescription
+            }
+            isFindingSenses = false
+        }
+    }
+
+    /// Every meaning the saved word has, with the button to look for more until a
+    /// search for all of them has been done.
+    @ViewBuilder
+    private var sensesSection: some View {
+        if let word = savedLexeme {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Other Definitions:")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                ForEach(word.orderedSenses) { sense in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(sense.translation)
+                            .foregroundStyle(nativeColor)
+                        if let gloss = sense.gloss {
+                            Text(gloss)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .font(.callout)
+                }
+
+                if !word.sensesAreExhaustive {
+                    Button(action: findMoreSenses) {
+                        if isFindingSenses {
+                            ProgressView()
+                        } else {
+                            Text("Find more meanings")
+                        }
+                    }
+                    .disabled(isFindingSenses)
+                }
+
+                if let senseMessage {
+                    Text(senseMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+        }
+    }
+
     /// Saves the pair into the language right away, rather than waiting for
-    /// SwiftData's autosave. A word already in this language keeps the meaning it has
-    /// (a lexeme is unique by language and lemma), but takes the gender chosen here,
-    /// and the gloss when it has none and the pair is the meaning it already has.
-    /// Returns a message when the save fails.
+    /// SwiftData's autosave. A word already in this language keeps the senses it has
+    /// (a lexeme is unique by language and lemma) and takes the gender chosen here. A
+    /// pair with a new translation becomes another sense, and the word is no longer
+    /// believed to have all its meanings. A known translation only fills in a missing
+    /// gloss. Returns a message when the save fails.
     private func save(native: String, target: String, gloss: String?) -> String? {
         let lemma = target.lowercased()
         let code = language.code
         let descriptor = FetchDescriptor<Lexeme>(predicate: #Predicate { $0.lemma == lemma && $0.languageCode == code })
 
         if let existing = (try? modelContext.fetch(descriptor))?.first {
-            if let saved = existing.englishMeaning, saved.lowercased() != native.lowercased() {
-                return "\(lemma) is already saved as \"\(saved)\". More meanings arrive with senses."
-            }
             existing.gender = gender
-            if existing.gloss == nil, existing.englishMeaning?.lowercased() == native.lowercased() {
-                existing.gloss = gloss
+            let match = existing.senses.first { $0.translation.lowercased() == native.lowercased() }
+            if let match {
+                if match.gloss == nil { match.gloss = gloss }
+            } else {
+                existing.addSense(translation: native, gloss: gloss)
+                existing.sensesAreExhaustive = false
             }
+            savedLexeme = existing
         } else {
             let new = Lexeme(lemma: lemma, englishMeaning: native, languageCode: language.code, gender: gender)
             new.gloss = gloss
             modelContext.insert(new)
             new.language = language
+            savedLexeme = new
         }
 
         do {

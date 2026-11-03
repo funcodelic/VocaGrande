@@ -149,14 +149,18 @@ struct NotecardQuizView: View {
         direction == .spanish ? lexeme.lemma : (lexeme.englishMeaning ?? "")
     }
 
-    /// The accepted answers: the lemma, or each comma/semicolon-separated gloss
-    /// of the English meaning.
+    /// The accepted answers: the lemma, or, for every sense, its translation and each
+    /// comma/semicolon-separated part of it.
     private func expectedAnswers(for lexeme: Lexeme) -> [String] {
         switch direction {
         case .spanish:
-            let meaning = lexeme.englishMeaning ?? ""
-            let parts = meaning.split(whereSeparator: { ",;".contains($0) }).map(String.init)
-            return [meaning] + parts
+            var answers: [String] = []
+            for meaning in lexeme.translations {
+                answers.append(meaning)
+                let parts = meaning.split(whereSeparator: { ",;".contains($0) })
+                answers.append(contentsOf: parts.map(String.init))
+            }
+            return answers
         case .english:
             return [lexeme.lemma]
         }
