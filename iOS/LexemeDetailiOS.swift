@@ -8,19 +8,23 @@
 import SwiftData
 import SwiftUI
 
-/// The add screen: type an English word and its Spanish match, tap the check, and
-/// ChatGPT says whether they match. A correct pair is saved as a lexeme.
+/// The add screen: type a word in the native language and its match in the language
+/// being learned, tap the check, and ChatGPT says whether they match. A correct pair
+/// is saved as a lexeme of that language.
 struct LexemeDetailiOS: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    @AppStorage(ProfileKeys.nativeLanguage) private var nativeCode = ""
+    @AppStorage(ProfileKeys.nativeLanguageColor) private var nativeColorName = ""
+
     private enum Field {
-        case english
-        case spanish
+        case native
+        case target
     }
 
-    private enum Verdict {
+    private enum CheckResult {
         case correct
         case tryAgain
         case failed(String)
@@ -29,59 +33,78 @@ struct LexemeDetailiOS: View {
     /// The word being viewed, or nil when adding a new one.
     let lexeme: Lexeme?
 
-    /// The language of the list this screen was opened from: "es" or "en". The
-    /// field for that language goes on top, and it names the title for a saved word.
-    let language: String
+    /// The language being learned; a saved word belongs to it.
+    let language: Language
 
-    @State private var english: String
-    @State private var spanish: String
+    /// Whether the list this screen was opened from shows the native language first.
+    /// The field for that language goes on top.
+    let showsNativeFirst: Bool
+
+    @State private var native: String
+    @State private var target: String
     @State private var gender: Gender?
-    @State private var verdict: Verdict?
+    @State private var checkResult: CheckResult?
     @State private var isChecking = false
     @FocusState private var focusedField: Field?
 
-    init(lexeme: Lexeme? = nil, language: String = "es") {
+    init(lexeme: Lexeme? = nil, language: Language, showsNativeFirst: Bool = false) {
         self.lexeme = lexeme
         self.language = language
-        _english = State(initialValue: lexeme?.englishMeaning ?? "")
-        _spanish = State(initialValue: lexeme?.lemma ?? "")
+        self.showsNativeFirst = showsNativeFirst
+        _native = State(initialValue: lexeme?.englishMeaning ?? "")
+        _target = State(initialValue: lexeme?.lemma ?? "")
         _gender = State(initialValue: lexeme?.gender)
     }
 
+    private var nativeName: String {
+        nativeCode.isEmpty ? "Native" : AppLanguage.name(forCode: nativeCode)
+    }
+
+    private var nativeColor: Color {
+        (LanguageColor(rawValue: nativeColorName) ?? .blue).color
+    }
+
+    /// The color of the side listed first, used for the buttons so they hint which
+    /// language the word is being added from.
+    private var accentColor: Color {
+        showsNativeFirst ? nativeColor : language.color
+    }
+
     private var canCheck: Bool {
-        !english.trimmed.isEmpty && !spanish.trimmed.isEmpty && !isChecking
+        !native.trimmed.isEmpty && !target.trimmed.isEmpty && !nativeCode.isEmpty && !isChecking
     }
 
     private var isCorrect: Bool {
-        if case .correct = verdict { true } else { false }
+        if case .correct = checkResult { true } else { false }
     }
 
     private var title: String {
         guard lexeme != nil else { return "New Word" }
-        let word = language == "en" ? english : spanish
+        let word = showsNativeFirst ? native : target
         return word.isEmpty ? "New Word" : word
     }
 
-    private var topField: Field { language == "en" ? .english : .spanish }
+    private var topField: Field { showsNativeFirst ? .native : .target }
 
-    private var bottomField: Field { language == "en" ? .spanish : .english }
+    private var bottomField: Field { showsNativeFirst ? .target : .native }
 
     private func textField(for field: Field) -> some View {
-        let isEnglish = field == .english
-        let name = isEnglish ? "English word" : "Spanish word"
+        let isNative = field == .native
+        let name = isNative ? nativeName : language.name
         let isTop = field == topField
+        let color = isNative ? nativeColor : language.color
 
         return VStack(alignment: .leading, spacing: 4) {
-            Text(isEnglish ? "English" : "Spanish")
+            Text(name)
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
                 .padding(.leading, 4)
 
             TextField(
                 "",
-                text: isEnglish ? $english : $spanish,
-                prompt: Text(name)
-                    .foregroundStyle((isTop ? Color.blue : Color.primary).opacity(0.6))
+                text: isNative ? $native : $target,
+                prompt: Text("\(name) word")
+                    .foregroundStyle((isTop ? color : Color.primary).opacity(0.6))
             )
             .font(.title2)
             .focused($focusedField, equals: field)
@@ -99,20 +122,20 @@ struct LexemeDetailiOS: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                if language == "en" {
-                    textField(for: .english)
-                        .foregroundStyle(.blue)
+                if showsNativeFirst {
+                    textField(for: .native)
+                        .foregroundStyle(nativeColor)
                     VStack(spacing: 6) {
-                        textField(for: .spanish)
+                        textField(for: .target)
                         genderPicker
                     }
                 } else {
                     VStack(spacing: 6) {
-                        textField(for: .spanish)
-                            .foregroundStyle(.blue)
+                        textField(for: .target)
+                            .foregroundStyle(language.color)
                         genderPicker
                     }
-                    textField(for: .english)
+                    textField(for: .native)
                 }
 
                 Button(action: check) {
@@ -123,18 +146,19 @@ struct LexemeDetailiOS: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(accentColor)
                 .disabled(!canCheck)
 
-                verdictView
-                
+                checkResultView
+
                 Divider()
-                
+
                 preview
                     .padding(.top, 24)
 
                 Spacer()
             }
+            .tint(accentColor)
             .textFieldStyle(.roundedBorder)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
@@ -150,24 +174,25 @@ struct LexemeDetailiOS: View {
                             .fontWeight(.semibold)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.blue)
+                    .tint(accentColor)
                     .clipShape(Circle())
                 }
             }
-            .onChange(of: english) { verdict = nil }
-            .onChange(of: spanish) { verdict = nil }
+            .onChange(of: native) { checkResult = nil }
+            .onChange(of: target) { checkResult = nil }
             .onAppear {
                 if lexeme == nil { focusedField = topField }
             }
         }
     }
 
-    /// "el | la | na" under the Spanish field: the chosen one is white, the others
-    /// secondary. "na" (no gender, a nil `gender`) is the default.
+    /// "el | la | na" under the target-language field: the chosen one is in the
+    /// language's color, the others secondary. "na" (no gender, a nil `gender`) is
+    /// the default.
     private var genderPicker: some View {
         HStack(spacing: 24) {
-            genderButton("el", .masculine)
-            genderButton("la", .feminine)
+            genderButton(Gender.masculine.article(for: language.code), .masculine)
+            genderButton(Gender.feminine.article(for: language.code), .feminine)
             genderButton("na", nil)
         }
     }
@@ -178,22 +203,22 @@ struct LexemeDetailiOS: View {
         } label: {
             Text(article)
                 .font(.title3)
-                .foregroundStyle(gender == value ? Color.blue : Color.secondary)
+                .foregroundStyle(gender == value ? accentColor : Color.secondary)
         }
         .buttonStyle(.plain)
     }
 
-    /// The Spanish word as it will be saved, built up as the learner types and
+    /// The word being learned as it will be saved, built up as the learner types and
     /// picks: the article in secondary, then the word. No article shows for na.
     @ViewBuilder
     private var preview: some View {
-        if !spanish.trimmed.isEmpty {
+        if !target.trimmed.isEmpty {
             HStack(spacing: 8) {
                 if let gender {
-                    Text(gender.article)
+                    Text(gender.article(for: language.code))
                         .foregroundStyle(.secondary)
                 }
-                Text(spanish.trimmed.lowercased())
+                Text(target.trimmed.lowercased())
                     .foregroundStyle(Color.primary)
             }
             .font(.title2)
@@ -208,8 +233,8 @@ struct LexemeDetailiOS: View {
     }
 
     @ViewBuilder
-    private var verdictView: some View {
-        switch verdict {
+    private var checkResultView: some View {
+        switch checkResult {
         case .correct:
             Text("Correct")
                 .font(.title2.weight(.semibold))
@@ -232,35 +257,56 @@ struct LexemeDetailiOS: View {
         focusedField = nil
         isChecking = true
 
-        let english = english.trimmed
-        let spanish = spanish.trimmed
+        let native = native.trimmed
+        let target = target.trimmed
 
         Task {
             do {
-                let isCorrect = try await TranslationChecker().isCorrect(english: english, spanish: spanish, gender: gender)
-                if isCorrect {
-                    save(english: english, spanish: spanish)
+                let isCorrect = try await TranslationChecker().isCorrect(
+                    native: native,
+                    nativeLanguage: nativeName,
+                    target: target,
+                    targetLanguage: language.name,
+                    gender: gender
+                )
+                if isCorrect, let problem = save(native: native, target: target) {
+                    checkResult = .failed(problem)
+                } else {
+                    checkResult = isCorrect ? .correct : .tryAgain
                 }
-                verdict = isCorrect ? .correct : .tryAgain
             } catch {
-                verdict = .failed(error.localizedDescription)
+                checkResult = .failed(error.localizedDescription)
             }
             isChecking = false
         }
     }
 
-    /// Saves the pair. A word already in the store keeps the meaning it has
-    /// (`lemma` is unique), but takes the gender chosen here.
-    private func save(english: String, spanish: String) {
-        let lemma = spanish.lowercased()
+    /// Saves the pair into the language right away, rather than waiting for
+    /// SwiftData's autosave. A word already in this language keeps the meaning it has
+    /// (`lemma` is unique), but takes the gender chosen here. Returns a message when
+    /// the word can't be saved, which is when the same spelling is already a word in
+    /// another language (until lemma stops being unique on its own).
+    private func save(native: String, target: String) -> String? {
+        let lemma = target.lowercased()
         let descriptor = FetchDescriptor<Lexeme>(predicate: #Predicate { $0.lemma == lemma })
 
         if let existing = (try? modelContext.fetch(descriptor))?.first {
+            guard existing.languageCode == language.code else {
+                return "\"\(lemma)\" is already saved as a \(AppLanguage.name(forCode: existing.languageCode)) word."
+            }
             existing.gender = gender
-            return
+        } else {
+            let new = Lexeme(lemma: lemma, englishMeaning: native, languageCode: language.code, gender: gender)
+            modelContext.insert(new)
+            new.language = language
         }
 
-        modelContext.insert(Lexeme(lemma: lemma, englishMeaning: english, languageCode: "es", gender: gender))
+        do {
+            try modelContext.save()
+            return nil
+        } catch {
+            return "Couldn't save: \(error.localizedDescription)"
+        }
     }
 }
 
@@ -271,6 +317,6 @@ private extension String {
 }
 
 #Preview {
-    LexemeDetailiOS()
-        .modelContainer(for: [Lexeme.self, TextSelectionItem.self], inMemory: true)
+    LexemeDetailiOS(language: Language(code: "es", color: .blue))
+        .modelContainer(for: [Language.self, Lexeme.self, TextSelectionItem.self], inMemory: true)
 }

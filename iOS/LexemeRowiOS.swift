@@ -7,40 +7,47 @@
 
 import SwiftUI
 
-/// One tappable word in the iPhone list. Spanish selected: "el gato" (article gray,
-/// word blue) then "cat" in white. English selected: "cat" in blue, then "el"
-/// gray and "gato" white. A chevron sits on the right.
+/// One tappable word in the iPhone list. Learned language first: "el gato" (article
+/// gray, word in the language's color) then "cat" in white. Native language first:
+/// "cat" in the native color, then "el" gray and "gato" white. A chevron sits on the
+/// right.
 struct LexemeRowiOS: View {
 
     let lexeme: Lexeme
 
-    /// The language shown first: "es" or "en".
-    let language: String
+    /// Whether the native meaning is listed before the word being learned.
+    let showsNativeFirst: Bool
 
-    private var english: String { lexeme.englishMeaning ?? "" }
+    /// The color of the word being learned, shown when it is first.
+    let targetColor: Color
 
-    private var spanish: some View {
+    /// The color of the native meaning, shown when it is first.
+    let nativeColor: Color
+
+    private var native: String { lexeme.englishMeaning ?? "" }
+
+    private var target: some View {
         HStack(spacing: 8) {
             if let gender = lexeme.gender {
-                Text(gender.article)
+                Text(gender.article(for: lexeme.languageCode))
                     .foregroundStyle(.secondary)
             }
             Text(lexeme.lemma)
-                .foregroundStyle(language == "en" ? Color.primary : Color.blue)
+                .foregroundStyle(showsNativeFirst ? Color.primary : targetColor)
                 .fontWeight(.semibold)
         }
     }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
-            if language == "en" {
-                Text(english)
+            if showsNativeFirst {
+                Text(native)
                     .fontWeight(.semibold)
-                    .foregroundStyle(Color.blue)
-                spanish
+                    .foregroundStyle(nativeColor)
+                target
             } else {
-                spanish
-                Text(english)
+                target
+                Text(native)
                     .foregroundStyle(Color.primary)
             }
 
@@ -60,8 +67,8 @@ struct LexemeRowiOS: View {
 
 #Preview {
     VStack {
-        LexemeRowiOS(lexeme: Lexeme(lemma: "gato", englishMeaning: "cat", languageCode: "es", gender: .masculine), language: "es")
-        LexemeRowiOS(lexeme: Lexeme(lemma: "gato", englishMeaning: "cat", languageCode: "es", gender: .masculine), language: "en")
+        LexemeRowiOS(lexeme: Lexeme(lemma: "gato", englishMeaning: "cat", languageCode: "es", gender: .masculine), showsNativeFirst: false, targetColor: .blue, nativeColor: .blue)
+        LexemeRowiOS(lexeme: Lexeme(lemma: "gato", englishMeaning: "cat", languageCode: "es", gender: .masculine), showsNativeFirst: true, targetColor: .blue, nativeColor: .orange)
     }
     .padding()
 }

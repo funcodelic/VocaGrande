@@ -12,11 +12,16 @@ enum Gender: String, Codable {
     case masculine
     case feminine
 
-    /// The Spanish definite article: "el" or "la".
-    var article: String {
-        switch self {
-        case .masculine: "el"
-        case .feminine: "la"
+    /// The definite article in a language: "el" or "la" in Spanish, "il" or "la" in
+    /// Italian. Other languages show "m" or "f" until they are given articles.
+    func article(for languageCode: String) -> String {
+        switch (languageCode, self) {
+        case ("es", .masculine): "el"
+        case ("es", .feminine): "la"
+        case ("it", .masculine): "il"
+        case ("it", .feminine): "la"
+        case (_, .masculine): "m"
+        case (_, .feminine): "f"
         }
     }
 }
@@ -39,6 +44,10 @@ final class Lexeme {
 
     /// The language the word is in, as a two-letter code: "es" for Spanish.
     var languageCode: String
+
+    /// The language this word belongs to. Nil only for words saved before languages
+    /// existed; `Language.adoptOrphans` links those on launch.
+    var language: Language?
 
     /// The grammatical gender of a noun. Nil for words that have none (verbs,
     /// adverbs) and for words not yet marked.

@@ -73,6 +73,7 @@ VocaGrande/Resources/models/*.bin
 # Claude
 # ─────────────────────────────
 CLAUDE.md
+docs/Safety.md
 
 
 # ─────────────────────────────

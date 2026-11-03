@@ -15,6 +15,7 @@ struct VocaGrandeiOSApp: App {
         let schema = Schema([
             TextSelectionItem.self,
             Lexeme.self,
+            Language.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -27,7 +28,7 @@ struct VocaGrandeiOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            LexemeListiOS()
+            LanguageListViewiOS()
         }
         .modelContainer(sharedModelContainer)
     }
