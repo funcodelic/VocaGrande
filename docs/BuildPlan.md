@@ -4,7 +4,7 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 
 ## To do later
 
-- **Lexeme uniqueness in both directions.** Today only the Spanish `lemma` is unique, and English is a plain string on the Spanish lexeme. Decide uniqueness after stages A to D, when English words are Lexemes. Interim idea (not built): before the ChatGPT call, look up the Spanish lemma and show "Already in your list" instead of silently keeping the old meaning; note, but allow, a second Spanish word with the same English meaning.
+- **Lexeme uniqueness in both directions.** A lexeme is unique by (language, lemma), done in stage B1, so Spanish "casa" and Italian "casa" are separate words. English is still a plain string on the target-language lexeme. Decide the rest after stages A to D, when English words are Lexemes. Interim idea (not built): before the ChatGPT call, look up the lemma in its language and show "Already in your list" instead of silently keeping the old meaning; note, but allow, a second word with the same English meaning.
 
 ## Next up (in order)
 
@@ -15,6 +15,9 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 
 **A. Language on every Lexeme (properly).**
 `languageCode` already exists but is hard-coded to "es". Make it a small enum (String raw value: es, en, it) and set it from the screen the word was added in. Nothing else changes yet.
+
+**B1. Language in the key (done).**
+`#Unique<Lexeme>([\.languageCode, \.lemma])` replaces the unique `lemma`. Lookups by lemma also filter by language.
 
 **B. Part of speech and the compound key.**
 Add `partOfSpeech` and `homographIndex`. Replace `@Attribute(.unique) lemma` with a uniqueness rule on (lemma, languageCode, partOfSpeech, homographIndex), enforced in code if SwiftData can't express it. Existing rows default to POS "unknown". The ChatGPT parse starts returning POS. This is the riskiest migration, so it goes before anything depends on it.

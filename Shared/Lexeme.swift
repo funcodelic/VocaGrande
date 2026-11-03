@@ -27,17 +27,20 @@ enum Gender: String, Codable {
 }
 
 /// One word of vocabulary, persisted with SwiftData. There is one `Lexeme` per
-/// dictionary word: `lemma` is unique, so a word met again in a later capture is
-/// the same lexeme, now linked to both captures.
+/// dictionary word in each language: (`languageCode`, `lemma`) is unique, so a word
+/// met again in a later capture is the same lexeme, now linked to both captures,
+/// while Spanish "casa" and Italian "casa" are two lexemes.
 @Model
 final class Lexeme {
 
+    #Unique<Lexeme>([\.languageCode, \.lemma])
+
     /// The word in its dictionary form, lowercase: the infinitive of a verb, the
-    /// singular of a noun or adjective. Unique across the store, so saving a second
-    /// lexeme with the same lemma upserts into the first rather than duplicating it.
-    /// `BookPdfController` looks up existing lexemes by lemma before inserting any,
-    /// so an existing word keeps the meaning it already has.
-    @Attribute(.unique) var lemma: String
+    /// singular of a noun or adjective. Unique within its language, so saving a
+    /// second lexeme with the same language and lemma upserts into the first rather
+    /// than duplicating it. Callers look up existing lexemes by language and lemma
+    /// before inserting any, so an existing word keeps the meaning it already has.
+    var lemma: String
 
     /// A dictionary-short English meaning. Nil until translated.
     var englishMeaning: String?

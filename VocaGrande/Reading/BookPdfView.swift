@@ -152,14 +152,15 @@ final class BookPdfController {
         }
     }
 
-    /// The lexemes for parsed words: those already in the store, found by lemma,
-    /// plus new ones inserted for words not seen before. An existing word keeps
-    /// the meaning it has, unless it had none. Should the lookup fail, the
-    /// uniqueness of `Lexeme.lemma` still stops the save from duplicating a word.
+    /// The lexemes for parsed words: those already in the store, found by language
+    /// and lemma, plus new ones inserted for words not seen before. An existing word
+    /// keeps the meaning it has, unless it had none. Should the lookup fail, the
+    /// uniqueness of language and lemma still stops the save from duplicating a word.
     private func lexemes(for words: [WordParser.Word], in modelContext: ModelContext) -> [Lexeme] {
         let lemmas = words.map(\.lemma)
+        let code = wordParser.languageCode
         let existing = (try? modelContext.fetch(
-            FetchDescriptor<Lexeme>(predicate: #Predicate { lemmas.contains($0.lemma) })
+            FetchDescriptor<Lexeme>(predicate: #Predicate { $0.languageCode == code && lemmas.contains($0.lemma) })
         )) ?? []
         var byLemma = Dictionary(existing.map { ($0.lemma, $0) }, uniquingKeysWith: { first, _ in first })
 

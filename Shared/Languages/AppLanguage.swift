@@ -38,6 +38,20 @@ struct AppLanguage: Identifiable, Hashable {
         ("th", "Thai"), ("tr", "Turkish"), ("uk", "Ukrainian"), ("vi", "Vietnamese"),
     ].map { AppLanguage(code: $0.0, name: $0.1) }
 
+    /// Letters a learner of the language is likely to need and an English keyboard
+    /// makes awkward to type, for the strip above the keyboard. Empty for languages
+    /// that don't need any.
+    static func specialCharacters(forCode code: String) -> [String] {
+        switch code {
+        case "es": ["á", "é", "í", "ó", "ú", "ü", "ñ", "¿", "¡"]
+        case "it": ["à", "è", "é", "ì", "ò", "ù"]
+        case "fr": ["à", "â", "ç", "é", "è", "ê", "ë", "î", "ï", "ô", "ù", "û", "œ"]
+        case "pt": ["á", "à", "â", "ã", "ç", "é", "ê", "í", "ó", "ô", "õ", "ú"]
+        case "de": ["ä", "ö", "ü", "ß"]
+        default: []
+        }
+    }
+
     /// The English name for a code, or the uppercased code when it isn't in the catalog.
     static func name(forCode code: String) -> String {
         all.first { $0.code == code }?.name ?? code.uppercased()

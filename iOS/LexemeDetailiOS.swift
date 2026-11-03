@@ -47,6 +47,11 @@ struct LexemeDetailiOS: View {
     @State private var isChecking = false
     @FocusState private var focusedField: Field?
 
+    /// The cursor in each field, so a letter from the keyboard strip lands where the
+    /// cursor is.
+    @State private var nativeSelection: TextSelection?
+    @State private var targetSelection: TextSelection?
+
     init(lexeme: Lexeme? = nil, language: Language, showsNativeFirst: Bool = false) {
         self.lexeme = lexeme
         self.language = language
@@ -103,6 +108,7 @@ struct LexemeDetailiOS: View {
             TextField(
                 "",
                 text: isNative ? $native : $target,
+                selection: isNative ? $nativeSelection : $targetSelection,
                 prompt: Text("\(name) word")
                     .foregroundStyle((isTop ? color : Color.primary).opacity(0.6))
             )
@@ -166,6 +172,9 @@ struct LexemeDetailiOS: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    specialCharacterStrip
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
                         dismiss()
@@ -184,6 +193,54 @@ struct LexemeDetailiOS: View {
                 if lexeme == nil { focusedField = topField }
             }
         }
+    }
+
+    /// The accented letters of the language of the focused field, in a strip above the
+    /// keyboard. Empty for a field whose language needs none.
+    @ViewBuilder
+    private var specialCharacterStrip: some View {
+        let code = focusedField == .native ? nativeCode : language.code
+        let characters = AppLanguage.specialCharacters(forCode: code)
+
+        if !characters.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 18) {
+                    ForEach(characters, id: \.self) { character in
+                        Button {
+                            insert(character)
+                        } label: {
+                            Text(character)
+                                .font(.title3)
+                                .frame(minWidth: 24)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Puts `character` at the cursor of the focused field, replacing any selected
+    /// text, and moves the cursor after it. Goes at the end when there's no cursor yet.
+    private func insert(_ character: String) {
+        if focusedField == .native {
+            insert(character, into: &native, selection: &nativeSelection)
+        } else {
+            insert(character, into: &target, selection: &targetSelection)
+        }
+    }
+
+    private func insert(_ character: String, into text: inout String, selection: inout TextSelection?) {
+        var start = text.endIndex
+        var end = text.endIndex
+        if let selection, case .selection(let range) = selection.indices {
+            start = range.lowerBound
+            end = range.upperBound
+        }
+
+        let offset = text.distance(from: text.startIndex, to: start)
+        text.replaceSubrange(start..<end, with: character)
+        let cursor = text.index(text.startIndex, offsetBy: offset + character.count)
+        selection = TextSelection(insertionPoint: cursor)
     }
 
     /// "el | la | na" under the target-language field: the chosen one is in the
@@ -283,17 +340,14 @@ struct LexemeDetailiOS: View {
 
     /// Saves the pair into the language right away, rather than waiting for
     /// SwiftData's autosave. A word already in this language keeps the meaning it has
-    /// (`lemma` is unique), but takes the gender chosen here. Returns a message when
-    /// the word can't be saved, which is when the same spelling is already a word in
-    /// another language (until lemma stops being unique on its own).
+    /// (a lexeme is unique by language and lemma), but takes the gender chosen here.
+    /// Returns a message when the save fails.
     private func save(native: String, target: String) -> String? {
         let lemma = target.lowercased()
-        let descriptor = FetchDescriptor<Lexeme>(predicate: #Predicate { $0.lemma == lemma })
+        let code = language.code
+        let descriptor = FetchDescriptor<Lexeme>(predicate: #Predicate { $0.lemma == lemma && $0.languageCode == code })
 
         if let existing = (try? modelContext.fetch(descriptor))?.first {
-            guard existing.languageCode == language.code else {
-                return "\"\(lemma)\" is already saved as a \(AppLanguage.name(forCode: existing.languageCode)) word."
-            }
             existing.gender = gender
         } else {
             let new = Lexeme(lemma: lemma, englishMeaning: native, languageCode: language.code, gender: gender)
