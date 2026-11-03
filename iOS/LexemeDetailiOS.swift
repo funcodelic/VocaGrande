@@ -52,6 +52,10 @@ struct LexemeDetailiOS: View {
         !english.trimmed.isEmpty && !spanish.trimmed.isEmpty && !isChecking
     }
 
+    private var isCorrect: Bool {
+        if case .correct = verdict { true } else { false }
+    }
+
     private var title: String {
         guard lexeme != nil else { return "New Word" }
         let word = language == "en" ? english : spanish
@@ -67,32 +71,47 @@ struct LexemeDetailiOS: View {
         let name = isEnglish ? "English word" : "Spanish word"
         let isTop = field == topField
 
-        return TextField(
-            "",
-            text: isEnglish ? $english : $spanish,
-            prompt: Text(name).foregroundStyle(Color(white: 0.7))
-        )
-        .focused($focusedField, equals: field)
-        .submitLabel(isTop ? .next : .done)
-        .onSubmit {
-            if isTop {
-                focusedField = bottomField
-            } else {
-                check()
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(isEnglish ? "English" : "Spanish")
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+                .padding(.leading, 4)
+
+            TextField(
+                "",
+                text: isEnglish ? $english : $spanish,
+                prompt: Text(name)
+                    .foregroundStyle((isTop ? Color.blue : Color.primary).opacity(0.6))
+            )
+            .font(.title2)
+            .focused($focusedField, equals: field)
+            .submitLabel(isTop ? .next : .done)
+            .onSubmit {
+                if isTop {
+                    focusedField = bottomField
+                } else {
+                    check()
+                }
             }
         }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
                 if language == "en" {
                     textField(for: .english)
-                    genderPicker
-                    textField(for: .spanish)
+                        .foregroundStyle(.blue)
+                    VStack(spacing: 6) {
+                        textField(for: .spanish)
+                        genderPicker
+                    }
                 } else {
-                    genderPicker
-                    textField(for: .spanish)
+                    VStack(spacing: 6) {
+                        textField(for: .spanish)
+                            .foregroundStyle(.blue)
+                        genderPicker
+                    }
                     textField(for: .english)
                 }
 
@@ -108,6 +127,11 @@ struct LexemeDetailiOS: View {
                 .disabled(!canCheck)
 
                 verdictView
+                
+                Divider()
+                
+                preview
+                    .padding(.top, 24)
 
                 Spacer()
             }
@@ -154,9 +178,33 @@ struct LexemeDetailiOS: View {
         } label: {
             Text(article)
                 .font(.title3)
-                .foregroundStyle(gender == value ? Color.primary : Color.secondary)
+                .foregroundStyle(gender == value ? Color.blue : Color.secondary)
         }
         .buttonStyle(.plain)
+    }
+
+    /// The Spanish word as it will be saved, built up as the learner types and
+    /// picks: the article in secondary, then the word. No article shows for na.
+    @ViewBuilder
+    private var preview: some View {
+        if !spanish.trimmed.isEmpty {
+            HStack(spacing: 8) {
+                if let gender {
+                    Text(gender.article)
+                        .foregroundStyle(.secondary)
+                }
+                Text(spanish.trimmed.lowercased())
+                    .foregroundStyle(Color.primary)
+            }
+            .font(.title2)
+            .padding(.vertical, 8)
+            .keyframeAnimator(initialValue: 1.0, trigger: isCorrect) { view, scale in
+                view.scaleEffect(scale)
+            } keyframes: { _ in
+                SpringKeyframe(1.3, duration: 0.15, spring: .snappy)
+                SpringKeyframe(1.0, duration: 0.3, spring: .bouncy)
+            }
+        }
     }
 
     @ViewBuilder
