@@ -23,7 +23,7 @@ struct LanguageRowiOS: View {
 
                 HStack(spacing: 6) {
                     Text("\(language.learnedCount) words learned")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(language.color)
                     Text("/")
                         .foregroundStyle(.gray)
                     Text("\(language.lexemes.count) total")

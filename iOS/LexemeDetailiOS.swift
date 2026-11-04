@@ -44,13 +44,6 @@ struct LexemeDetailiOS: View {
     @State private var target: String
     @State private var gender: Gender?
 
-    /// The description of the meaning of one pair of words, shown under the word
-    /// while the fields still hold that pair.
-    @State private var gloss: String?
-
-    /// The pair `gloss` describes, as `pairKey`. Editing a field hides the gloss, and
-    /// putting the pair back brings it back.
-    @State private var glossPairKey: String?
     @State private var checkResult: CheckResult?
     @State private var isChecking = false
 
@@ -75,8 +68,6 @@ struct LexemeDetailiOS: View {
         _target = State(initialValue: lexeme?.lemma ?? "")
         _gender = State(initialValue: lexeme?.gender)
         _savedLexeme = State(initialValue: lexeme)
-        _gloss = State(initialValue: lexeme?.gloss)
-        _glossPairKey = State(initialValue: lexeme.map { Self.pairKey(native: $0.englishMeaning ?? "", target: $0.lemma) })
     }
 
     private var nativeName: String {
@@ -93,16 +84,6 @@ struct LexemeDetailiOS: View {
         showsNativeFirst ? nativeColor : language.color
     }
 
-    /// A pair of words as one comparable string: trimmed and lowercased.
-    private static func pairKey(native: String, target: String) -> String {
-        "\(native.trimmed.lowercased())|\(target.trimmed.lowercased())"
-    }
-
-    /// The gloss, only while the fields hold the pair it was made for.
-    private var shownGloss: String? {
-        glossPairKey == Self.pairKey(native: native, target: target) ? gloss : nil
-    }
-
     private var canCheck: Bool {
         !native.trimmed.isEmpty && !target.trimmed.isEmpty && !nativeCode.isEmpty && !isChecking
     }
@@ -115,6 +96,11 @@ struct LexemeDetailiOS: View {
         guard lexeme != nil else { return "New Word" }
         let word = showsNativeFirst ? native : target
         return word.isEmpty ? "New Word" : word
+    }
+
+    /// The color of the bottom field's language, used for the check button under it.
+    private var bottomColor: Color {
+        showsNativeFirst ? language.color : nativeColor
     }
 
     private var topField: Field { showsNativeFirst ? .native : .target }
@@ -143,7 +129,7 @@ struct LexemeDetailiOS: View {
             .font(.title2)
             .foregroundStyle(color)
             .focused($focusedField, equals: field)
-            .submitLabel(isTop ? .next : .done)
+            .submitLabel(isTop ? .next : .continue)
             .onSubmit {
                 if isTop {
                     focusedField = bottomField
@@ -179,7 +165,7 @@ struct LexemeDetailiOS: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(accentColor)
+                .tint(bottomColor)
                 .disabled(!canCheck)
 
                 checkResultView
@@ -187,17 +173,8 @@ struct LexemeDetailiOS: View {
                 VStack(spacing: 10) {
                     Divider()
 
-                    VStack(spacing: 8) {
-                        preview
-
-                        if let shownGloss {
-                            Text(shownGloss)
-                                .font(.callout)
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(.vertical, 4)
+                    preview
+                        .padding(.vertical, 4)
 
                     if savedLexeme != nil {
                         Divider()
@@ -341,7 +318,7 @@ struct LexemeDetailiOS: View {
         case .correct:
             Text("Correct")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(.green)
+                .foregroundStyle(nativeColor)
         case .tryAgain:
             Text("Try Again")
                 .font(.title2.weight(.semibold))
@@ -375,10 +352,6 @@ struct LexemeDetailiOS: View {
                 if result.isCorrect, let problem = save(native: native, target: target, gloss: result.gloss) {
                     checkResult = .failed(problem)
                 } else {
-                    if result.isCorrect {
-                        gloss = result.gloss
-                        glossPairKey = Self.pairKey(native: native, target: target)
-                    }
                     checkResult = result.isCorrect ? .correct : .tryAgain
                 }
             } catch {
@@ -396,7 +369,7 @@ struct LexemeDetailiOS: View {
         isFindingSenses = true
         senseMessage = nil
 
-        let known = word.orderedSenses.map { (translation: $0.translation, gloss: $0.gloss) }
+        let known = word.sortedSenses.map { (translation: $0.translation, gloss: $0.gloss) }
 
         Task {
             do {
@@ -427,12 +400,23 @@ struct LexemeDetailiOS: View {
     private var sensesSection: some View {
         if let word = savedLexeme {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Other Definitions:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                if word.sensesAreExhaustive {
+                    Text("Meanings:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Button(action: findMoreSenses) {
+                        if isFindingSenses {
+                            ProgressView()
+                        } else {
+                            Text("Find more meanings")
+                        }
+                    }
+                    .disabled(isFindingSenses)
+                }
 
-                ForEach(word.orderedSenses) { sense in
+                ForEach(word.sortedSenses) { sense in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(sense.translation)
                             .foregroundStyle(nativeColor)
@@ -442,17 +426,6 @@ struct LexemeDetailiOS: View {
                         }
                     }
                     .font(.callout)
-                }
-
-                if !word.sensesAreExhaustive {
-                    Button(action: findMoreSenses) {
-                        if isFindingSenses {
-                            ProgressView()
-                        } else {
-                            Text("Find more meanings")
-                        }
-                    }
-                    .disabled(isFindingSenses)
                 }
 
                 if let senseMessage {
@@ -479,6 +452,7 @@ struct LexemeDetailiOS: View {
 
         if let existing = (try? modelContext.fetch(descriptor))?.first {
             existing.gender = gender
+            if existing.primaryTranslation == nil { existing.primaryTranslation = native }
             let match = existing.senses.first { $0.translation.lowercased() == native.lowercased() }
             if let match {
                 if match.gloss == nil { match.gloss = gloss }
@@ -489,7 +463,7 @@ struct LexemeDetailiOS: View {
             savedLexeme = existing
         } else {
             let new = Lexeme(lemma: lemma, englishMeaning: native, languageCode: language.code, gender: gender)
-            new.gloss = gloss
+            new.senses.first?.gloss = gloss
             modelContext.insert(new)
             new.language = language
             savedLexeme = new

@@ -43,7 +43,7 @@ struct LexemeListiOS: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 Text("\(language.learnedCount) words learned")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(language.color)
                 Text("/")
                     .foregroundStyle(.gray)
                 Text("\(language.lexemes.count) total")

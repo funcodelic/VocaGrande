@@ -24,14 +24,10 @@ final class Sense {
     /// the translation is known.
     var gloss: String?
 
-    /// Where this sense sits among the lexeme's senses, first to last.
-    var order: Int
-
     var lexeme: Lexeme?
 
-    init(translation: String, gloss: String? = nil, order: Int) {
+    init(translation: String, gloss: String? = nil) {
         self.translation = translation
         self.gloss = gloss
-        self.order = order
     }
 }

@@ -43,8 +43,14 @@ final class Lexeme {
     /// before inserting any, so an existing word keeps the meaning it already has.
     var lemma: String
 
-    /// The word's meanings, owned by it. Read them through `orderedSenses`.
+    /// The word's meanings, owned by it. Read them through `sortedSenses`.
     @Relationship(deleteRule: .cascade, inverse: \Sense.lexeme) var senses: [Sense] = []
+
+    /// The translation of the sense the word was added with: the meaning shown in
+    /// lists and used as the quiz prompt. Set once when the word is created and kept
+    /// when other senses are added. Nil for words saved before it existed, which fall
+    /// back to the alphabetically first sense.
+    var primaryTranslation: String?
 
     /// Whether a search for all of the word's meanings has been done (a full lookup,
     /// or "find more meanings"), so `senses` is believed complete. False when the
@@ -87,35 +93,32 @@ final class Lexeme {
         self.englishMeaning = englishMeaning
     }
 
-    /// The senses in order, first to last.
-    var orderedSenses: [Sense] {
-        senses.sorted { $0.order < $1.order }
-    }
-
-    /// The first sense's translation: the dictionary-short native meaning shown in
-    /// lists. Nil until translated. Setting it changes the first sense, or makes one.
-    var englishMeaning: String? {
-        get { orderedSenses.first?.translation }
-        set {
-            guard let newValue, !newValue.isEmpty else { return }
-            if let first = orderedSenses.first {
-                first.translation = newValue
-            } else {
-                senses.append(Sense(translation: newValue, order: 0))
-            }
+    /// The senses alphabetically by translation, then by gloss. There is no stored
+    /// order: adding a meaning may move the others, and that is fine.
+    var sortedSenses: [Sense] {
+        senses.sorted {
+            let order = $0.translation.localizedCaseInsensitiveCompare($1.translation)
+            if order != .orderedSame { return order == .orderedAscending }
+            return ($0.gloss ?? "").localizedCaseInsensitiveCompare($1.gloss ?? "") == .orderedAscending
         }
     }
 
-    /// The first sense's gloss, such as "financial institution" for banca / bank.
-    /// Nil until a check supplies it; setting it needs a first sense.
-    var gloss: String? {
-        get { orderedSenses.first?.gloss }
-        set { orderedSenses.first?.gloss = newValue }
+    /// The primary translation, for lists that show one short native meaning. Falls
+    /// back to the alphabetically first sense for words without one, and is nil until
+    /// translated. Setting it makes it the primary translation, and adds a sense for
+    /// it when the word has none.
+    var englishMeaning: String? {
+        get { primaryTranslation ?? sortedSenses.first?.translation }
+        set {
+            guard let newValue, !newValue.isEmpty else { return }
+            primaryTranslation = newValue
+            if senses.isEmpty { senses.append(Sense(translation: newValue)) }
+        }
     }
 
     /// Every sense's translation, for quizzing: any of them is a right answer.
     var translations: [String] {
-        orderedSenses.map(\.translation).filter { !$0.isEmpty }
+        senses.map(\.translation).filter { !$0.isEmpty }
     }
 
     /// Whether `translation` and `gloss` describe a meaning the word already has: the
@@ -127,10 +130,10 @@ final class Lexeme {
         }
     }
 
-    /// Adds a sense after the existing ones and returns it.
+    /// Adds a sense and returns it.
     @discardableResult
     func addSense(translation: String, gloss: String?) -> Sense {
-        let sense = Sense(translation: translation, gloss: gloss, order: (senses.map(\.order).max() ?? -1) + 1)
+        let sense = Sense(translation: translation, gloss: gloss)
         senses.append(sense)
         return sense
     }

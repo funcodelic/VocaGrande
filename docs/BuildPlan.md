@@ -8,8 +8,9 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 
 ## Next up (in order)
 
-1. Languages first: stages A and B below. Start here.
-2. Sense list with `SenseTranslationRowiOS` on the add screen: flat one-to-one rows under the preview (English word in blue, gloss in gray), pronunciation shown once at the top. Tap a row to fill the English field and link the pair. A Sense with two translations becomes two rows sharing the gloss; the row matching what was typed is marked first.
+1. Languages first: stage A (language enum) is still open, then B (part of speech and the compound key). The language model and screens already exist.
+2. Sense list with `SenseTranslationRowiOS` on the add screen: flat one-to-one rows under the preview (English word in blue, gloss in gray), pronunciation shown once at the top. Tap a row to fill the English field and link the pair. A Sense with two translations becomes two rows sharing the gloss; the row matching `primaryTranslation` is marked first.
+3. Later idea: a plus button beside the word that opens a sheet of synonyms, so each can be added as a Lexeme (for example other ways to say "to lead").
 
 ## Stages
 
@@ -23,10 +24,10 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 Add `partOfSpeech` and `homographIndex`. Replace `@Attribute(.unique) lemma` with a uniqueness rule on (lemma, languageCode, partOfSpeech, homographIndex), enforced in code if SwiftData can't express it. Existing rows default to POS "unknown". The ChatGPT parse starts returning POS. This is the riskiest migration, so it goes before anything depends on it.
 
 **C (built, first version). Sense, owned by Lexeme.**
-Done: `Sense` (translation as plain text, gloss, order), `Lexeme.senses`, `englishMeaning` and `gloss` as computed first-sense values, and `Lexeme.sensesAreExhaustive`. The add screen lists a word's senses and shows "Find more meanings" until the flag is set; `SenseFinder` is the one reusable ChatGPT call (known senses in, only new ones out) that the ? lookup will reuse with an empty known list. Not done: checked state per Sense (E), translations as English Lexemes (D), part of speech.
+Done: `Sense` (translation as plain text, gloss; no stored order), `Lexeme.senses` shown alphabetically by translation then gloss (`sortedSenses`), `Lexeme.primaryTranslation` (the translation the word was added with, set once; `englishMeaning` returns it and falls back to the alphabetically first sense for older words), and `Lexeme.sensesAreExhaustive`. The headline gloss under the word was removed; the list is headed "Meanings:" once the exhaustive check has run, and the "Find more meanings" button takes that spot until then. The add screen lists a word's senses and shows "Find more meanings" until the flag is set; `SenseFinder` is the one reusable ChatGPT call (known senses in, only new ones out) that the ? lookup will reuse with an empty known list. Not done: checked state per Sense (E), translations as English Lexemes (D), part of speech.
 
 Original plan:
-New `Sense` model: `gloss` (short English description), `order`, owner `lexeme`. Migrate each existing `englishMeaning` into one Sense on its Lexeme. Keep `englishMeaning` as a computed first-sense gloss so current screens keep working.
+New `Sense` model: `gloss` (short English description), owner `lexeme`. Migrate each existing `englishMeaning` into one Sense on its Lexeme. `englishMeaning` stays as a computed value (now the primary translation) so current screens keep working.
 
 **D. English words become Lexemes, linked through Sense.**
 Add `Sense.translations: [Lexeme]`. Saving a Spanish word with an English meaning creates or finds the English Lexeme (languageCode "en") and links it from the Spanish Sense. After this step both directions are first-class, and the quiz can accept any linked translation.
