@@ -28,20 +28,27 @@ enum Gender: String, Codable {
 }
 
 /// One word of vocabulary, persisted with SwiftData. There is one `Lexeme` per
-/// dictionary word in each language: (`languageCode`, `lemma`) is unique, so a word
-/// met again in a later capture is the same lexeme, now linked to both captures,
-/// while Spanish "casa" and Italian "casa" are two lexemes.
+/// dictionary word in each language and part of speech: (`languageCode`, `lemma`,
+/// `partOfSpeech`) is unique, so a word met again in a later capture is the same
+/// lexeme, now linked to both captures, while Spanish "casa" and Italian "casa" are
+/// two lexemes. Same-spelling words of one part of speech (a `homographIndex`) are
+/// not told apart yet.
 @Model
 final class Lexeme {
 
-    #Unique<Lexeme>([\.languageCode, \.lemma])
+    #Unique<Lexeme>([\.languageCode, \.lemma, \.partOfSpeechRaw])
 
     /// The word in its dictionary form, lowercase: the infinitive of a verb, the
-    /// singular of a noun or adjective. Unique within its language, so saving a
-    /// second lexeme with the same language and lemma upserts into the first rather
-    /// than duplicating it. Callers look up existing lexemes by language and lemma
-    /// before inserting any, so an existing word keeps the meaning it already has.
+    /// singular of a noun or adjective. With the language and part of speech it is
+    /// unique, so saving a second lexeme with the same three upserts into the first
+    /// rather than duplicating it. Callers look up existing lexemes by language and
+    /// lemma before inserting any, so an existing word keeps the meaning it already
+    /// has.
     var lemma: String
+
+    /// The stored name of `partOfSpeech`. It is a string, not the enum, so the
+    /// uniqueness rule above works on it. Read and set `partOfSpeech` instead.
+    var partOfSpeechRaw: String = PartOfSpeech.unknown.rawValue
 
     /// The word's meanings, owned by it. Read them through `sortedSenses`.
     @Relationship(deleteRule: .cascade, inverse: \Sense.lexeme) var senses: [Sense] = []
@@ -85,12 +92,29 @@ final class Lexeme {
         lemma: String,
         englishMeaning: String? = nil,
         languageCode: String,
-        gender: Gender? = nil
+        gender: Gender? = nil,
+        partOfSpeech: PartOfSpeech = .unknown,
+        isInfinitive: Bool = false
     ) {
         self.lemma = lemma
         self.languageCode = languageCode
         self.gender = gender
+        self.partOfSpeechRaw = partOfSpeech.rawValue
+        self.isInfinitive = isInfinitive
         self.englishMeaning = englishMeaning
+    }
+
+    /// Whether the word is asserted to be the infinitive of a verb, the handle for its
+    /// other forms. Set when the learner typed the English infinitive ("to lead", with
+    /// the "to" helper) and the check agreed the word is a verb. Never cleared by a
+    /// later check; false for words saved before it existed.
+    var isInfinitive: Bool = false
+
+    /// The word's part of speech, as the check reported it. `unknown` for words
+    /// saved before it did, until they are checked again.
+    var partOfSpeech: PartOfSpeech {
+        get { PartOfSpeech(rawValue: partOfSpeechRaw) ?? .unknown }
+        set { partOfSpeechRaw = newValue.rawValue }
     }
 
     /// The senses alphabetically by translation, then by gloss. There is no stored

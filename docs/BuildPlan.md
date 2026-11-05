@@ -4,7 +4,7 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 
 ## To do later
 
-- **Lexeme uniqueness in both directions.** A lexeme is unique by (language, lemma), done in stage B1, so Spanish "casa" and Italian "casa" are separate words. English is still a plain string on the target-language lexeme. Decide the rest after stages A to D, when English words are Lexemes. Interim idea (not built): before the ChatGPT call, look up the lemma in its language and show "Already in your list" instead of silently keeping the old meaning; note, but allow, a second word with the same English meaning.
+- **Lexeme uniqueness in both directions.** Scope decision (2026-11-05): this is an R&D app for Troy (and maybe Caleb), shown in interviews. A word is unique as (language, lemma, part of speech); true lexeme-level uniqueness (homographs, forms resolving to a lemma) is not required. A lexeme was unique by (language, lemma), done in stage B1, so Spanish "casa" and Italian "casa" are separate words. English is still a plain string on the target-language lexeme. Decide the rest after stages A to D, when English words are Lexemes. Interim idea (not built): before the ChatGPT call, look up the lemma in its language and show "Already in your list" instead of silently keeping the old meaning; note, but allow, a second word with the same English meaning.
 
 ## Next up (in order)
 
@@ -20,8 +20,8 @@ Goal: grow Lexeme into a language-aware hub that owns checked Senses, then settl
 **B1. Language in the key (done).**
 `#Unique<Lexeme>([\.languageCode, \.lemma])` replaces the unique `lemma`. Lookups by lemma also filter by language.
 
-**B. Part of speech and the compound key.**
-Add `partOfSpeech` and `homographIndex`. Replace `@Attribute(.unique) lemma` with a uniqueness rule on (lemma, languageCode, partOfSpeech, homographIndex), enforced in code if SwiftData can't express it. Existing rows default to POS "unknown". The ChatGPT parse starts returning POS. This is the riskiest migration, so it goes before anything depends on it.
+**B. Part of speech and the compound key (first version built 2026-11-05).**
+Done: `PartOfSpeech` enum (unknown, noun, verb, adjective, adverb, pronoun, article, preposition, conjunction, interjection), stored on `Lexeme` as `partOfSpeechRaw` (a string, so the uniqueness rule can use it) and read as `partOfSpeech`. The key is now `#Unique<Lexeme>([languageCode, lemma, partOfSpeechRaw])`. `TranslationChecker` returns the part of speech as a third reply line, inferred from the same "does this word mean this word" question, and the add screen saves it and shows it beside the word. A word saved with `unknown` (older rows, capture parses) is taken over by the first check that reports a POS. Not done: `homographIndex` (same spelling, same POS), POS from the capture parser (`WordParser`), and a lemma check (a typed "hablas" is still saved as typed).
 
 **C (built, first version). Sense, owned by Lexeme.**
 Done: `Sense` (translation as plain text, gloss; no stored order), `Lexeme.senses` shown alphabetically by translation then gloss (`sortedSenses`), `Lexeme.primaryTranslation` (the translation the word was added with, set once; `englishMeaning` returns it and falls back to the alphabetically first sense for older words), and `Lexeme.sensesAreExhaustive`. The headline gloss under the word was removed; the list is headed "Meanings:" once the exhaustive check has run, and the "Find more meanings" button takes that spot until then. The add screen lists a word's senses and shows "Find more meanings" until the flag is set; `SenseFinder` is the one reusable ChatGPT call (known senses in, only new ones out) that the ? lookup will reuse with an empty known list. Not done: checked state per Sense (E), translations as English Lexemes (D), part of speech.

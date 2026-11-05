@@ -44,6 +44,10 @@ struct LexemeDetailiOS: View {
     @State private var target: String
     @State private var gender: Gender?
 
+    /// The part of speech the last check reported for the target word; `unknown`
+    /// until a check, and again when the target word is edited.
+    @State private var partOfSpeech: PartOfSpeech
+
     @State private var checkResult: CheckResult?
     @State private var isChecking = false
 
@@ -67,6 +71,7 @@ struct LexemeDetailiOS: View {
         _native = State(initialValue: lexeme?.englishMeaning ?? "")
         _target = State(initialValue: lexeme?.lemma ?? "")
         _gender = State(initialValue: lexeme?.gender)
+        _partOfSpeech = State(initialValue: lexeme?.partOfSpeech ?? .unknown)
         _savedLexeme = State(initialValue: lexeme)
     }
 
@@ -90,6 +95,18 @@ struct LexemeDetailiOS: View {
 
     private var isCorrect: Bool {
         if case .correct = checkResult { true } else { false }
+    }
+
+    /// Whether what is in the fields is the pair already saved and checked: the word
+    /// is saved, its translation is one of its senses, and the gender is unchanged.
+    /// The check button is then drawn quietly so it doesn't ask to be pressed again.
+    /// It still works, and turns bright as soon as anything is edited.
+    private var isVerified: Bool {
+        guard let word = savedLexeme else { return false }
+        let translation = native.trimmed.lowercased()
+        return target.trimmed.lowercased() == word.lemma
+            && gender == word.gender
+            && word.translations.contains { $0.lowercased() == translation }
     }
 
     private var title: String {
@@ -140,6 +157,20 @@ struct LexemeDetailiOS: View {
         }
     }
 
+    /// Toggles "to " at the start of the English field. Adds it with the cursor after
+    /// it, ready for the verb; a field that already starts with "to " loses it instead,
+    /// with the cursor at the start.
+    private func insertTo() {
+        if native.lowercased().hasPrefix("to ") {
+            native.removeFirst(3)
+            nativeSelection = TextSelection(insertionPoint: native.startIndex)
+        } else {
+            native = "to " + native
+            nativeSelection = TextSelection(insertionPoint: native.index(native.startIndex, offsetBy: 3))
+        }
+        focusedField = .native
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -165,18 +196,17 @@ struct LexemeDetailiOS: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(bottomColor)
+                .tint(isVerified ? Color.secondary : bottomColor)
                 .disabled(!canCheck)
 
                 checkResultView
 
                 VStack(spacing: 10) {
-                    Divider()
-
                     preview
                         .padding(.vertical, 4)
 
-                    if savedLexeme != nil {
+                    // The line above the meanings only matters once there is a list.
+                    if (savedLexeme?.senses.count ?? 0) > 1 {
                         Divider()
                     }
                 }
@@ -212,21 +242,26 @@ struct LexemeDetailiOS: View {
                 }
             }
             .onChange(of: native) { checkResult = nil }
-            .onChange(of: target) { checkResult = nil }
+            .onChange(of: target) {
+                checkResult = nil
+                partOfSpeech = .unknown
+            }
             .onAppear {
                 if lexeme == nil { focusedField = topField }
             }
         }
     }
 
-    /// The accented letters of the language of the focused field, in a strip above the
-    /// keyboard. Empty for a field whose language needs none.
+    /// Above the keyboard: the accented letters of the language of the focused field,
+    /// and for the English field of an English speaker, "to (verb infinitive)", which
+    /// puts "to " in front of the word. Nothing for a field whose language needs neither.
     @ViewBuilder
     private var specialCharacterStrip: some View {
         let code = focusedField == .native ? nativeCode : language.code
         let characters = AppLanguage.specialCharacters(forCode: code)
+        let showsTo = focusedField == .native && nativeCode == "en"
 
-        if !characters.isEmpty {
+        if !characters.isEmpty || showsTo {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 18) {
                     ForEach(characters, id: \.self) { character in
@@ -236,6 +271,18 @@ struct LexemeDetailiOS: View {
                             Text(character)
                                 .font(.title3)
                                 .frame(minWidth: 24)
+                        }
+                    }
+
+                    if showsTo {
+                        Button(action: insertTo) {
+                            HStack(spacing: 4) {
+                                Text("to (verb infinitive)")
+                                    .foregroundStyle(.secondary)
+                                //Text("(verb infinitive)")
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .font(.title3)
                         }
                     }
                 }
@@ -294,13 +341,18 @@ struct LexemeDetailiOS: View {
     @ViewBuilder
     private var preview: some View {
         if !target.trimmed.isEmpty {
-            HStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if let gender {
                     Text(gender.article(for: language.code))
                         .foregroundStyle(.secondary)
                 }
                 Text(target.trimmed.lowercased())
                     .foregroundStyle(language.color)
+                if partOfSpeech != .unknown {
+                    Text(partOfSpeech.rawValue)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
             .font(.title2)
             .keyframeAnimator(initialValue: 1.0, trigger: isCorrect) { view, scale in
@@ -349,7 +401,13 @@ struct LexemeDetailiOS: View {
                     targetLanguage: language.name,
                     gender: gender
                 )
-                if result.isCorrect, let problem = save(native: native, target: target, gloss: result.gloss) {
+                if result.isCorrect { partOfSpeech = result.partOfSpeech }
+                if result.isCorrect, let problem = save(
+                    native: native,
+                    target: target,
+                    gloss: result.gloss,
+                    partOfSpeech: result.partOfSpeech
+                ) {
                     checkResult = .failed(problem)
                 } else {
                     checkResult = result.isCorrect ? .correct : .tryAgain
@@ -377,6 +435,8 @@ struct LexemeDetailiOS: View {
                     lemma: word.lemma,
                     targetLanguage: language.name,
                     nativeLanguage: nativeName,
+                    partOfSpeech: word.partOfSpeech,
+                    gender: word.gender,
                     known: known
                 )
                 var added = 0
@@ -440,29 +500,47 @@ struct LexemeDetailiOS: View {
     }
 
     /// Saves the pair into the language right away, rather than waiting for
-    /// SwiftData's autosave. A word already in this language keeps the senses it has
-    /// (a lexeme is unique by language and lemma) and takes the gender chosen here. A
-    /// pair with a new translation becomes another sense, and the word is no longer
-    /// believed to have all its meanings. A known translation only fills in a missing
-    /// gloss. Returns a message when the save fails.
-    private func save(native: String, target: String, gloss: String?) -> String? {
+    /// SwiftData's autosave. A word already in this language with the same lemma and
+    /// part of speech keeps the senses it has (a lexeme is unique by language, lemma
+    /// and part of speech) and takes the gender chosen here. A word saved with no
+    /// part of speech yet (from a capture) is taken over by the first check that
+    /// reports one. The same spelling as a different part of speech is a separate
+    /// lexeme. A pair with a new translation becomes another sense, and the word is
+    /// no longer believed to have all its meanings. A known translation only fills in
+    /// a missing gloss. Returns a message when the save fails.
+    private func save(native: String, target: String, gloss: String?, partOfSpeech: PartOfSpeech) -> String? {
         let lemma = target.lowercased()
         let code = language.code
         let descriptor = FetchDescriptor<Lexeme>(predicate: #Predicate { $0.lemma == lemma && $0.languageCode == code })
+        // The learner wrote the English infinitive ("to lead") and the check agrees the
+        // word is a verb: the word is asserted to be the infinitive of its verb.
+        let assertsInfinitive = partOfSpeech == .verb && native.lowercased().hasPrefix("to ")
+        let sameSpelling = (try? modelContext.fetch(descriptor)) ?? []
+        let match = sameSpelling.first { $0.partOfSpeech == partOfSpeech }
+            ?? (partOfSpeech == .unknown ? nil : sameSpelling.first { $0.partOfSpeech == .unknown })
 
-        if let existing = (try? modelContext.fetch(descriptor))?.first {
+        if let existing = match {
+            existing.partOfSpeech = partOfSpeech
+            if assertsInfinitive { existing.isInfinitive = true }
             existing.gender = gender
             if existing.primaryTranslation == nil { existing.primaryTranslation = native }
-            let match = existing.senses.first { $0.translation.lowercased() == native.lowercased() }
-            if let match {
-                if match.gloss == nil { match.gloss = gloss }
+            let sense = existing.senses.first { $0.translation.lowercased() == native.lowercased() }
+            if let sense {
+                if sense.gloss == nil { sense.gloss = gloss }
             } else {
                 existing.addSense(translation: native, gloss: gloss)
                 existing.sensesAreExhaustive = false
             }
             savedLexeme = existing
         } else {
-            let new = Lexeme(lemma: lemma, englishMeaning: native, languageCode: language.code, gender: gender)
+            let new = Lexeme(
+                lemma: lemma,
+                englishMeaning: native,
+                languageCode: language.code,
+                gender: gender,
+                partOfSpeech: partOfSpeech,
+                isInfinitive: assertsInfinitive
+            )
             new.senses.first?.gloss = gloss
             modelContext.insert(new)
             new.language = language
